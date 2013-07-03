@@ -38,11 +38,12 @@ options(expressions = 5e5)
 
 # 
 # load functions from github and attach them in search path.
-local({
+#local({
+.First <- function(){
   attach.file <- (function(){
     git.dir <- "https://raw.github.com/TobCap/R/master"
     
-    if (!Sys.getenv("HTTPS_PROXY") == ""){
+    if (nzchar(Sys.getenv("HTTPS_PROXY"))){
       if(!"RCurl" %in% utils:::installed.packages()[,"Package"]) install.packages("RCurl")
       if(!"package:RCurl" %in% search()) library("RCurl")
     }
@@ -51,11 +52,16 @@ local({
       gitUrl <- file.path(git.dir, file.name)
       local.path <- file.path(tempdir(), file.name)
       
-      print("downloading functions from github");
-      if (!Sys.getenv("HTTPS_PROXY") == "") {
+      # http://stackoverflow.com/questions/7715723/sourcing-r-script-over-https
+      # http://stackoverflow.com/questions/14441729/read-a-csv-from-github-into-r
+      
+      print("downloading files from github")
+      
+      if (nzchar(Sys.getenv("HTTPS_PROXY"))) {
         # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
         utils:::download.file(url = gitUrl, destfile = local.path, method = "curl", extra = "-k")
       } else {
+        utils:::setInternet2(TRUE) # required for Rstudio
         utils:::download.file(url = gitUrl, destfile = local.path)
       }
       return(local.path)
@@ -67,11 +73,13 @@ local({
   
   attach.file("startFunctions.r")
   attach.file("functionalProgramming.r")
+  # attach.file("lazyStream.r")
   # load.packages is defined in above "startFunctions.r".
-  # load.packages(c("ggplot2", "gridExtra", "reshape2", "microbenchmark", "rbenchmark", 
-    # "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC", "data.table", "timeDate", "lubridate",
-    # "sos", "PerformanceAnalytics", "quantmod", "DEoptim", "RQuantLib", "Rbbg"))
+  load.packages(c("ggplot2", "gridExtra", "reshape2", "microbenchmark", "rbenchmark", 
+    "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC", "data.table", "timeDate", "lubridate",
+    "sos", "PerformanceAnalytics", "quantmod", "DEoptim", "RQuantLib"))
   # load.packages("Rbbg", repos = "http://r.findata.org")
   # load.packages("FinancialInstrument", repos="http://R-Forge.R-project.org")
   # "dataframe" is not permitted no CRAN from R 3.0.0; see http://www.timhesterberg.net/r-packages	
-})
+  }
+#})
