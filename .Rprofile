@@ -40,17 +40,24 @@ options(expressions = 5e5)
 # load functions from github and attach them in search path.
 local({
   attach.file <- (function(){
-		git.dir <- "https://raw.github.com/TobCap/R/master"
-    if(!"RCurl" %in% utils:::installed.packages()[,"Package"]) install.packages("RCurl")
-    if(!"package:RCurl" %in% search()) library("RCurl")
+    git.dir <- "https://raw.github.com/TobCap/R/master"
     
-	  get.file.github <- function(git.dir, fileName){
-      gitUrl <- file.path(git.dir, fileName)
-      local.path <- file.path(tempdir(), fileName)
+    if (!Sys.getenv("HTTPS_PROXY") == ""){
+      if(!"RCurl" %in% utils:::installed.packages()[,"Package"]) install.packages("RCurl")
+      if(!"package:RCurl" %in% search()) library("RCurl")
+    }
+    
+    get.file.github <- function(git.dir, file.name){
+      gitUrl <- file.path(git.dir, file.name)
+      local.path <- file.path(tempdir(), file.name)
       
       print("downloading functions from github");
-      # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
-      utils:::download.file(url = gitUrl, destfile = local.path, method = "curl", extra = "-k")
+      if (!Sys.getenv("HTTPS_PROXY") == "") {
+        # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
+        utils:::download.file(url = gitUrl, destfile = local.path, method = "curl", extra = "-k")
+      } else {
+        utils:::download.file(url = gitUrl, destfile = local.path)
+      }
       return(local.path)
 	  }
     return(function(file.name){
