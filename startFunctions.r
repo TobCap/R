@@ -2,7 +2,13 @@ load.packages <- (function(){
   if(!.Platform$OS.type == "windows")
     message("I don't check if it works on mac or linux.")
   repos.mem <- character(0)
-  p <- function(...) cat("###", ..., "\n")
+  #p <- function(...) cat("###", ..., "\n")
+  p <- (function() {
+    msg <- character(0)
+    function(...) {
+      msg <<- paste(msg, "###", ..., "\n", collapse = " ")
+    }
+  })()
   # "cran.packages" will be created in this environment by delayedAssign function.
   
   function(packageNames, repos = getOption("repos"), lib.loc = NULL){
@@ -42,6 +48,7 @@ load.packages <- (function(){
     
     if(!foundInCRAN) p("If you want to install some packages from r-forge or Omegahat,\nplease firstly do setRepositories() and select repos, then call me again.")
     
+    cat(environment(p)$msg)
     invisible(utils::flush.console())
   }
 })()
