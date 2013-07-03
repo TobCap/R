@@ -1,21 +1,23 @@
 ### functional operators
 
-### the reason why I define `f.` instead of `f` is to avoid the situation where many sample codes use `f` that causes conflict.
+### I define `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
   d <- lapply(substitute(list(...)), identity)[-1]
   as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env) 
 }
-### the same as Reduce(function(x, y) x + y, 1:10)
+### saves to type anonymous function
+# > Reduce(function(x, y) x + y, 1:10)
+# [1] 55
 # > Reduce(f.(x, y, x + y), 1:10)
 # [1] 55
 
 # > f.(y, f.(z, y+z))(1)(2)
 # [1] 3
+# > f.(y=1, f.(z=2, y+z))()()
+# [1] 3
 
 λ <- l. <- function(...) curry(f.(..., env = parent.frame()))
-### lambda's Unicode address is U+03BB or \u03BB
-### http://d.hatena.ne.jp/mickey24/20110119/1295432161
-
+### λ (lambda) is Unicode: U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5) # run
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5) # run
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5)
@@ -33,12 +35,13 @@ curry <-  function(fun, env = parent.frame()) {
   }
   recursiveCall(length(formals(fun)), list())
 }
-# > curry(function(x) function(y) function(z) x + y + z)(1)(2)(3)
+# > curry(function(x, y, z) x + y + z)(1)(2)(3)
 # [1] 6
-### `f.` is already defined above and I love using it.
+### `f.` is already defined above and save your typing.
 # > curry(f.(x, y, z, x + y + z))(1)(2)(3)
 # [1] 6
-
+# > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
+# [1] 6
 uncurry <- function(fun){
   function(...){
     args <- c(...)
@@ -53,9 +56,78 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip <- function(f){
-  function(l, r) match.fun(f)(r, l)
+flip.lr <- function(FUN){
+  function(l, r) match.fun(FUN)(r, l)
 }
+### example
+# > flip.lr(Reduce)(1:10, f.(x, y, x+y))
+# [1] 55
+
+flip <- function(FUN, l = 1, r = 2){
+  # if argments of FUN have dot-dot-dot(...), be careful to use 
+  if(typeof(FUN) != "closure")
+    stop("It only works when typeof(FUN) is closure.")
+  args.old <- formals(FUN)
+  if(l <= 0 || r <= l || length(args.old) < r)
+    stop("0 < l < r <= length(args(FUN))")
+    
+  args.new <- unlist(
+    lapply(seq_along(args.old), function(k) {
+      if(k == l) args.old[r]
+      else if(k == r) args.old[l]
+      else args.old[k]
+    }),
+  recursive = FALSE)
+  
+  as.function(c(tools:::as.alist.call(args.new), body(FUN)))
+}
+### example
+# > sapply(1:4, sqrt)
+# [1] 1.000000 1.414214 1.732051 2.000000
+# > sapply(sqrt, 1:4)
+#  以下にエラー match.fun(FUN) : 
+#    '1:4' は関数、文字、またはシンボルではありません 
+# > flip(sapply)(sqrt, 1:4)
+# [1] 1.000000 1.414214 1.732051 2.000000
+
+# avoiding conflict with utils::zip
+# 結局 mapply
+zip. <- function(..., FUN = list){
+  dot.args <- list(...)
+  args.len <- min(vapply(dot.args, length, 0))
+  new.args <- lapply(dot.args, function(x) x[1:args.len])
+  do.call(mapply, c(FUN = FUN, new.args, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+}
+
+zipWith. <- function(fun, ..., do.unlist = FALSE) {
+  if (do.unlist)
+    unlist(zip.(..., FUN = match.fun(fun)))
+  else
+    zip.(..., FUN = match.fun(fun))
+}
+
+# zip.(list(1,2,3), list(4,5,6))
+# zip.(1:3, 4:6)
+
+# zip.(list(1,2,3), list(4,5,6), list(7,8,9))
+# zip.(1:3, 4:6, 7:9)
+# zip..(1:3, letters[1:3])
+
+# zipWith(f.(x,y, 2*x+y), 1:4, 5:8)
+#
+# > func <- function(x) x %|% zip.(.., 0:(length(x)-1)) %|% Map(prod, ..) %|% Reduce(`+`, ..)
+# > func(seq(10, 50, by=10))
+# [1] 400
+#
+### http://mew.org/~kazu/material/2011-haskell.pdf
+### Ruby
+# def func (ar)
+# ar.zip((0..ar.length).to_a) \
+# .map{|(x,i)|x*i} \
+# .reduce(:+);
+# end
+# func([10,20,30,40,50]);
+# → 400
 
 ### http://neue.cc/2011/02/14_302.html
 "%|>%" <- function(x, f) f(x)
@@ -64,8 +136,7 @@ flip <- function(f){
 ### functional composition
 "%>>%" <- function(f, g) function(x) g(f(x))
 "%<<%" <- function(f, g) function(x) f(g(x))
-### same as "%<<%" <- flip(`%>>%`)
-
+compose. <- function(f, g) function(x) f(g(x))
 # f1 <- f.(x, {cat("f1(x = ", x, ") -> ", sep = ""); x + 1})
 # f2 <- f.(x, {cat("f2(x = ", x, ") -> ", sep = ""); x * 2})
 # f3 <- f.(x, {cat("f3(x = ", x, ") -> ", sep = ""); x / 3})
@@ -77,26 +148,31 @@ flip <- function(f){
 # > f5(1)
 # f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
 
-### chain methods
-### I refer to the code of help("Reduce")
-`-->` <- function(...){
-    Funcall <- function(f, ...) f(...)
-    function(x) Reduce(Funcall, list(...), x, right = TRUE)
-}
-# > `-->`(cos, log, sin)(pi/2)
-# [1] 1
-# > (pi/2) %|% sin %|% log %|% cos
-# [1] 1
-# > cos %<<% log %<<% sin %<|% (pi/2)
-# [1] 1
-# > sin %>>% log %>>% cos %<|% (pi/2)
-# [1] 1
-# > cos(log(sin(pi/2)))
-# [1] 1
+### I refer to the code in help("Reduce")
+### only works when value is at first or end and functions, rest of args, require one argument.
+# `<--` <- function(...){
+  # Reduce("%<|%", list(...), right = TRUE)
+# }
+# `-->` <- function(...){
+  # Reduce("%|>%", list(...), right = FALSE)
+# } 
+# > `-->`(1:5, f.(x, x-1), f.(x, x*10))
+# [1]  0 10 20 30 40
+# `<<--` <- function(...){
+    # Funcall <- function(f, ...) f(...)
+    # function(x) Reduce(Funcall, list(...), x, right = TRUE)
+# }
+# `-->>` <- function(...){
+    # Funcall <- function(f, ...) f(...)
+    # function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
+# }
+# `-->>`(f.(x, x-1), f.(x, x*10))(1:5)
+# [1]  0 10 20 30 40
 
 ### pipeline like operator
-### left value can be passed by ".." just like scala's underbar "_".
-### "." is already used in "package:plyr" so I use "..".
+### left value can be passed by ".." just like scala's underscore "_".
+### I use "..", "." is already used in "package:plyr".
+### not fast but easy to read and understand because of using fewer parentheses.
 "%|%" <- function(lhs, rhs){
   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
   if (is.function(ans))
@@ -107,28 +183,64 @@ flip <- function(f){
     ans
 }
 
-### the same
-# Filter(function(x) x%%2==0, 1:5)
-# 1:5 %|% (..%%2==0)
+# > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
+# [1]  0  1  4  9 16
+# > 1:5 %|% (..-1) %|% (..^2)
+# [1]  0  1  4  9 16
+# > 1:5 %|% {..-1} %|% {..^2}
+# [1]  0  1  4  9 16
 
-# > 1:10 %|% (..%%2==0) %|% ..^2
+### the same
+# > Filter(function(x) x%%2==0, 1:5)
+# [1] 2 4
+# > 1:5 %|% (..%%2==0)
+# [1] 2 4
+
+# here, with %|% operator, right assignment is useful to define a variable
+# > 1:10 %|% (..%%2==0) %|% ..^2 -> x
+# > x
 # [1]   4  16  36  64 100
 
 ### plot brownian motion in one liner
-# n<-1000; m<-252; mu<-0; sigma <- 0.2/sqrt(m); {f.(rnorm(m, mu-sigma^2/2, sigma) %|% cumsum %|% c(0, ..))} %|%  replicate(n, ..()) %|% matplot(exp(..), type = "l", ann = FALSE) 
+# > f.({mu<-0;m<-252;sigma<-0.2/sqrt(m) ;rnorm(m, mu-sigma^2/2, sigma) %|% cumsum %|% c(0, ..)}) %|% replicate(n=1000, ..()) %|% matplot(.., type = "l", ann = FALSE)
 
-# > f.({mu<-0;m<-252;sigma<-0.2/sqrt(m) ;rnorm(m, mu-sigma^2/2, sigma) %|% cumsum %|% c(0, ..)}) %|% replicate(1000, ..()) %|% matplot(exp(..), type = "l", ann = FALSE)
+### set break lines after typing `%|%`
+# f.({mu<-0;m<-252;sigma<-0.2/sqrt(m) ;rnorm(m, mu-sigma^2/2, sigma) %|% 
+#   cumsum %|% 
+#   c(0, ..)}) %|% 
+# replicate(n=1000, ..()) %|% 
+# matplot(.., type = "l", ann = FALSE);
 
+### invokes interceptor; the idea comes from underscore javascript.
+### it easy to debug.
+tap <- function(x, fun) {
+  if(missing(fun)) print(x) else print(fun(x))
+  x
+}
+# > 1:10 %|% (..%%2==0) %|% tap %|% ..^2
+# [1]  2  4  6  8 10
+# [1]   4  16  36  64 100
 
+# > cos(log(sin(pi/2)))
+#
+# > cos %<<% log %<<% sin %<|% (pi/2)
+# > (pi/2) %|>% {cos %<<% log %<<% sin}
+# > sin %>>% log %>>% cos %<|% (pi/2)
+# > (pi/2) %|>% {sin %>>% log %>>% cos}
+#
+### code flows from left to right; no need to use round bracket!
+### http://yuroyoro.hatenablog.com/category/%E9%96%A2%E6%95%B0%E5%9E%8B%E8%A8%80%E8%AA%9E
+# > (pi/2) %|% sin %|% log %|% cos
+# > (pi/2) %|>% sin %|>% log %|>% cos
 
 ### fixed-point combinator
 ### I tried to check four types of fixed-point combinator function and blow is the simplest and fastest
-fix. <- function(g)	{f <- g(f)}
+fix. <- function(g) {f <- g(f)}
 
 ### http://en.wikipedia.org/wiki/Fixed-point_combinator
 
 # fix0 <- function(g) g(fix0(g))
-# fix1 <- function(g)	f <- g(f)
+# fix1 <- function(g) f <- g(f)
 # fix2 <- function(f) (function(x) f(x(x)) )(function(x) f(x(x)))
 # fix3 <- function(f) (function(x) f(function(y) x(x)(y)))(function(x) f(function(y) x(x)(y)))
 # fix4 <- function(f) (function(x) function(y) f(x(x))(y))(function(x) function(y) f(x(x))(y))
@@ -148,15 +260,23 @@ fix. <- function(g)	{f <- g(f)}
 # 4 fix3(mult_maker)(100) 250.312 260.7875 267.2135 277.9690 1124.725
 # 5 fix4(mult_maker)(100) 250.591 263.3020 267.9115 279.7845 1121.372
 
+### refers to javascript.
 ### http://d.hatena.ne.jp/r-west/20090422/1240400570
-gen.memoizer <- function (use.global = FALSE) {
-  if(!isTRUE(use.global) & !is.null(use.global)) {
-    .memo <- new.env()
-  } else if(isTRUE(use.global) & exists(".memo", envir = .GlobalEnv)) {
-    .memo <- get(".memo", envir = .GlobalEnv)
+# gen.memoizer <- function (use.global = FALSE) {
+gen.memoizer <- function(stored.env, reset.all = FALSE){
+  if(missing(stored.env)) {
+    stored.env <-  tryCatch(as.environment("functional"),
+      error = function(e) {attach(NULL, name="functional")})
   } else {
-    .memo <- assign(".memo", new.env(), envir = .GlobalEnv)
+    stopifnot(is.environment(stored.env))
   }
+  
+  if(exists(".memo", envir = stored.env) & !reset.all) {
+    .memo <- get(".memo", envir = stored.env)
+  } else {
+    .memo <- assign(".memo", new.env(), envir = stored.env)
+  }
+  
   function(f) {
     #fun.names <- paste0(lapply(sys.calls(), `[`, 1), collapse = ",")
     all.funs <- lapply(sys.calls(), 
@@ -194,6 +314,7 @@ gen.tracer <- function () {
   }
 }
 ###
+
 fib_maker <- function(f) {
   function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 }
@@ -226,21 +347,21 @@ fib_maker <- function(f) {
 # 5th call with argument: 0
 # [1] 5
 
-### all the same 
+### all results are the same, but memoized only if input is after the second execution.
 # fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
 # (gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.)(5)
 # {gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.}(5)
 # 5 %|>% {gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.}
 # gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix. %<|% 5
 
-### gen.memoizer(TRUE) use `.memo` in .GlobalEnv and set the results.
-### gen.memoizer(NULL) reset and creates new `.memo` in .GlobalEnv.
+### gen.memoizer() set results into `.memo` in a given environment.
+### gen.memoizer(reset.all = TRUE) resets and creates a new `.memo` in the given environment.
 
-# > invisible(gen.memoizer(NULL)) # reset
+# > invisible(gen.memoizer(reset.all = TRUE)) # reset
 # > ls(.memo)
 # character(0)
 
-# > fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(5)
+# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
 # 1st call with argument: 4
 # 2nd call with argument: 3
 # 3rd call with argument: 2
@@ -249,33 +370,42 @@ fib_maker <- function(f) {
 # [1] 5
 
 ### the result is memoised.
-# > fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(5)
+# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
 # [1] 5
 
 ### only new arguments are passed to calculation
-# > fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(7)
+# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(7)
 # 1st call with argument: 6
 # 2nd call with argument: 5
 # [1] 13
 
 # > ls(.memo)
-# [1] "fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(),f(),g()"
-# > ls(.memo$`fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(),f(),g()`)
+# [1] "fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(NULL),f(x),g(f(x))"
+#
+# > lapply(.memo, function(x) ls(x))
+# $`fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(NULL),f(x),g(f(x))`
 # [1] "0" "1" "2" "3" "4" "5" "6"
-# > .memo$`fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(),f(),g()`$`6`
-# [1] 8
+#
+# > lapply(.memo, function(x) lapply(x, identity))
+# > lapply(.memo, function(x) rapply(as.list(x), identity))
+# $`fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(NULL),f(x),g(f(x))`
+# 0 1 2 3 4 5 6 
+# 0 1 1 2 3 5 8 
 
-# fib <- gen.memoizer(TRUE)(function(x) if(x<=1) x else fib(x-1) + fib(x-2))
+# fib <- gen.memoizer()(function(x) if(x<=1) x else fib(x-1) + fib(x-2))
 # > fib(1000)
 # [1] 4.346656e+208
-# > ls(.memo)
+# > tail(ls(as.list(.memo)[[2]]))
+# [1] "994" "995" "996" "997" "998" "999"
+
 # install.packages("gmp"); library("gmp")
-# > fib2 <- gen.memoizer(TRUE)(function(x) if(x<=1) as.bigz(x) else fib2(x-1) + fib2(x-2))
+# > fib2 <- gen.memoizer()(function(x) if(x<=1) as.bigz(x) else fib2(x-1) + fib2(x-2))
 # > fib2(1000)
 # Big Integer ('bigz') :
 # [1] 43466557686937456435688527675040625802564660517371780402481729089536555417949051890403879840079255169295922593080322634775209689623239873322471161642996440906533187938298969649928516003704476137795166849228875
 
-### Firstly, I refered to http://d.hatena.ne.jp/einblicker/20110108/1294448477
+### I refered to http://d.hatena.ne.jp/einblicker/20110108/1294448477, http://d.hatena.ne.jp/einblicker/20110113/1294920315
+
 ### convert call to list and vice versa
 call.list.cnv <- function(f.arg){
   arg.is.lang <- is.language(f.arg)
@@ -290,43 +420,65 @@ call.list.cnv <- function(f.arg){
 # cnv(quote(x+y^z), quote(z), quote(m))
 cnv <- function(expr, before, after){
   stopifnot(is.language(expr), length(before) == 1)
-	conv <- function(x){
+  conv <- function(x){
         if (is.pairlist(x)) {
-          # names are not converted except formals' pairlist
+          # names are only converted within formals's arguments; pairlist.
           ind <- match(as.character(before), names(x))
           names(x)[ind] <- as.character(after)
           as.pairlist(lapply(x, conv))
         } else if (length(x) == 1) {
           if(x == before) after else x
-				} else as.call(lapply(x, conv))
-			}
+        } else as.call(lapply(x, conv))
+      }
   conv(expr)    
-}  
+}
 # > cnv(quote(1+2+x^3), quote(x), quote(y))
 # 1 + 2 + y^3
 # > cnv(quote(1+2+x^3), quote(2), quote(99))
 # 1 + 99 + x^3
+
 # > cnv(quote(1+2+x^3) , quote(`+`), quote(`-`))
 # 1 - 2 - x^3
 # > eval(cnv(quote(1+2+x^3) , quote(`+`), quote(`-`)), list(x = 2))
 # [1] -9
 
 nest.formula <- function(expr, variable, num){
-  if(num == 1) return(expr)
-  cnv(nest.formula(expr, variable, num - 1), variable, expr)
+  if (num == 1) return(expr)
+  else cnv(nest.formula(expr, variable, num - 1), variable, expr)
 }
 # > nest.formula(quote(sqrt(1+x^2)), quote(x), 3)
 # sqrt(1 + sqrt(1 + sqrt(1 + x^2)^2)^2)
 # > eval(nest.formula(quote(1+1/x), quote(x), 40), list(x = 1)) == (1+sqrt(5))/2
 # [1] TRUE
 
+
 ### tail recursive
 nest.fun <- function(f, n, acc.fun = identity){
-  f2 <- function(g, h) function(x) g(h(x))
+  # compose. is already defined above.
   if (n == 0) return(acc.fun)
-  if (n %% 2 == 0) nest.fun(f2(f, f), n / 2, acc.fun)
-  else nest.fun(f, n - 1, f2(f, acc.fun))
+  else if (n %% 2 == 0) nest.fun(compose.(f, f), n / 2, acc.fun)
+  else nest.fun(f, n - 1, compose.(f, acc.fun))
 }
+nest.fun2 <- function(f, n){
+  if (n == 0) function(x) identity(x)
+  else compose.(f, nest.fun2(f, n - 1))
+}
+# > benchmark(tail.rec = nest.fun(function(x) {x}, 100)(0), simple = nest.fun2(function(x) {x}, 100)(0), replications=1e4)[,1:4]
+#       test replications elapsed relative
+# 2   simple        10000     3.2 2.666667
+# 1 tail.rec        10000     1.2 1.000000
+#
+# > benchmark(tail.rec = nest.fun(function(x) {x}, 10)(0), simple = nest.fun2(function(x) {x}, 10)(0), replications=1e5)[,1:4]
+#       test replications elapsed relative
+# 2   simple       100000    3.30 1.240602
+# 1 tail.rec       100000    2.66 1.000000
+#
+# > benchmark(tail.rec = nest.fun(function(x) {x}, 1)(0), simple = nest.fun2(function(x) {x}, 1)(0), replications=1e6)[,1:4]
+#       test replications elapsed relative
+# 2   simple      1000000    5.52 1.000000
+# 1 tail.rec      1000000    8.31 1.505435
+
+
 
 # > nest.fun(f.(x, 1 + 1/x), 100)(1) == (1+sqrt(5))/2
 # [1] TRUE
@@ -338,17 +490,28 @@ nest.fun <- function(f, n, acc.fun = identity){
 # 3rd call with argument: 1.5
 # [1] 1.666667
 
-# > nest.fun(f.(x, 1 + 1/x) %|>% gen.tracer() %|>% gen.memoizer(TRUE), 3)(1)
-# 1st call with argument: 1
-# 2nd call with argument: 2
-# 3rd call with argument: 1.5
-# [1] 1.666667
-# > nest.fun(f.(x, 1 + 1/x) %|>% gen.tracer() %|>% gen.memoizer(TRUE), 3)(1)
-# [1] 1.666667
-# > 
-
+### http://en.wikipedia.org/wiki/Church_encoding
+### http://taiju.hatenablog.com/entry/20120529/1338299884
+# zero <- l.(f, x, x)
+# one  <- l.(f, x, f(x))
+# two  <- l.(f, x, f(f(x)))
+# num  <- l.(n, f, x, nest.fun(f, n)(x))
+#
+# plus <- l.(m, n, f, x, m(f)(n(f)(x)))
+# succ <- l.(n, f, x, f(n(f)(x)))
+# mult <- l.(m, n, f, m(n(f)))
+# toInt <- f.(n, n(f.(n, n + 1))(0))
+# 
+# toInt(plus(zero)(one))
+# toInt(plus(one)(two))
+# toInt(succ(one))
+# toInt(num(99))
+# toInt(plus(num(7))(num(8)))
+# toInt(mult(num(3))(num(5)))
+# num(3) %|>% mult %<|% num(5) %|% toInt
 
 # tail call optimization, not completely tested
+# Now it only works when the function `f` has arguments which use four basic arithmetic operaters; `+`, `-`, `*`, and `/`.
 tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   f.arg.names <- names(formals(f))
   g <- function(){}
@@ -363,12 +526,14 @@ tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
     }
     return(environment(g)[[f.arg.names[[out.ind]]]])
   }
+  
   formals(out.fun) <- formals(f)
   return(out.fun)
 }
+
 # sum.rec <- function(n, acc = 0){
-# if(n == 0) acc
-# else sum.rec(n - 1, acc + n)
+#   if(n == 0) acc
+#   else sum.rec(n - 1, acc + n)
 # }
 # > sum.rec(10)
 # [1] 55
@@ -385,7 +550,7 @@ tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
 # > tco(pow.rec)(2, 10)
 # 以下にエラー setNames(g(), f.arg.names) : 
 # 'names' 属性 [3] はベクトル [1] の長さと同じでなければなりません 
-# > tco(pow.rec, var.ind = 2)(2, 10)
+# > tco(pow.rec, var.ind = 2)(2, 10) # designate the second argument of tco.
 # [1] 1024
 
 lang2char  <- function(expr, type = c("rexp", "sexp")){
@@ -398,28 +563,28 @@ lang2char  <- function(expr, type = c("rexp", "sexp")){
   as.char <- function(k){
     first <- as.character(f(k, 1))
     rest <- paste(
-      lapply(k[-1], function(x) if(is.list(x)) as.char(x) else as.character(x))
-      , collapse = coll)
+      lapply(k[-1], function(x) {
+        if(is.list(x)) as.char(x) else as.character(x)
+      }) , collapse = coll)
     if(nchar(rest) > 0) pst(first, rest) else first
   }
   c2l <- function(x){
-    call2list <- function(e) {
-      if(length(e) == 1) return(e) 
-      else lapply(e, call2list)
-    }
+    call2list <- function(e)
+      if(length(e) == 1) return(e) else lapply(e, call2list)
     if(!typeof(x) == "list") call2list(x) else x
   }
-  as.char(c2l(expr))
+  noquote(as.char(c2l(expr)))
 }
 
 # > lang2char(quote(x+sin(y*z)))
-# [1] "`+`(x, sin(`*`(y, z)))"
-### useful to interpretate by lisp
-# > lang2char(quote(x+sin(y*z)), "s")
-# [1] "(+ x (sin (* y z)))"
-# > txt <- lang2char(quote(x+sin(y*z)))
-# > eval(parse(text = txt), list(x=1,y=2,z=3))
-# [1] 0.7205845
-# > eval(quote(x+sin(y*z)), list(x=1,y=2,z=3))
+# [1] `+`(x, sin(`*`(y, z)))
+# > eval(parse(text="`+`(x, sin(`*`(y, z)))"), list(x=1, y=2, z=3))
 # [1] 0.7205845
 
+### S-expression
+# > lang2char(quote(x+sin(y*z)), "s")
+# [1] (+ x (sin (* y z)))
+
+# library(codetools)
+# > showTree(quote(x+sin(y*z)))
+# (+ x (sin (* y z)))
