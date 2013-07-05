@@ -1,5 +1,3 @@
-# set environment variables as R_PROFILE_USE = this file path
-
 # set options
 local({
   r <- getOption("repos")
@@ -28,7 +26,7 @@ options(expressions = 5e5)
 # --vanilla
 # >  s(1665)
 # [1] 1386944
- # >  s(1666)
+# >  s(1666)
 # エラー：  評価があまりに深く入れ子になっています。無限の再帰か options(expressions=)？ 
 
 # options(expressions = 5e5)
@@ -37,56 +35,51 @@ options(expressions = 5e5)
 # > s(6250)
 # エラー：  protect()：プロテクションスタックが溢れました 
 
+
 # 
-# load functions from github and attach them in the search path.
-# load startup packages
-local({
-  startup.packages <- c("ggplot2", "gridExtra", "reshape2", "microbenchmark", "rbenchmark", "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC", "data.table", "timeDate", "lubridate", "sos", "PerformanceAnalytics", "quantmod", "DEoptim", "RQuantLib")
-  git.dir.url <- "https://raw.github.com/TobCap/R/master"
-  download.github <- TRUE
-  use.setInternet2 <- TRUE
-  
-  get.file.github <- function(git.url){
-    # returns downloaded local path
-    local.path <- file.path(tempdir(), basename(git.url))
-    print("downloading files from github")
-    if (use.setInternet2) {
+# load functions from github and attach them in search path.
+#local({
+.First <- function(){
+  attach.file <- (function(){
+    git.dir <- "https://raw.github.com/TobCap/R/master"
+    
+    if (nzchar(Sys.getenv("HTTPS_PROXY"))){
+      if(!"RCurl" %in% utils:::installed.packages()[,"Package"]) install.packages("RCurl")
+      if(!"package:RCurl" %in% search()) library("RCurl")
+    }
+    
+    get.file.github <- function(git.dir, file.name){
+      gitUrl <- file.path(git.dir, file.name)
+      local.path <- file.path(tempdir(), file.name)
+      
       # http://stackoverflow.com/questions/7715723/sourcing-r-script-over-https
       # http://stackoverflow.com/questions/14441729/read-a-csv-from-github-into-r
-      utils::setInternet2(TRUE)
-      utils::download.file(url = git.url, destfile = local.path)
-    } else {
-      if(!"package:RCurl" %in% search()){
-        if(!"RCurl" %in% utils::installed.packages()[,"Package"]) install.packages("RCurl")
-        library("RCurl", quitely = TRUE)
+      
+      print("downloading files from github")
+      
+      if (nzchar(Sys.getenv("HTTPS_PROXY"))) {
+        # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
+        utils:::download.file(url = gitUrl, destfile = local.path, method = "curl", extra = "-k")
+      } else {
+        utils:::setInternet2(TRUE) # required for Rstudio
+        utils:::download.file(url = gitUrl, destfile = local.path)
       }
-      # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
-      utils::download.file(url = git.url, destfile = local.path, method = "curl", extra = "-k")
-    }
-    return(local.path)
-  }
+      return(local.path)
+	  }
+    return(function(file.name){
+      sys.source(get.file.github(git.dir, file.name), envir = attach(NULL, name = file.name))
+    })
+  })()
   
-  attach.file <- function(git.url){
-    local.path <- get.file.github(git.url)
-    sys.source(local.path, envir = attach(NULL, name = basename(local.path)))
-  }
-   
-  if(download.github){
-    attach.file(file.path(git.dir.url, "startFunctions.r"))
-    attach.file(file.path(git.dir.url, "functionalProgramming.r"))
-    # attach.file(file.path(git.dir.url, "lazyStream.r"))
-   }
-    
-  if(download.github){
-    # load.packages is defined in above "startFunctions.r".
-    load.packages(startup.packages)
-  } else {
-    for(x in startup.packages){
-      eval(call("library", x, quietly = TRUE))
-      utils::flush.console()
-    }
-  }
+  attach.file("startFunctions.r")
+  attach.file("functionalProgramming.r")
+  # attach.file("lazyStream.r")
+  # load.packages is defined in above "startFunctions.r".
+  load.packages(c("ggplot2", "gridExtra", "reshape2", "microbenchmark", "rbenchmark", 
+    "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC", "data.table", "timeDate", "lubridate",
+    "sos", "PerformanceAnalytics", "quantmod", "DEoptim", "RQuantLib"))
   # load.packages("Rbbg", repos = "http://r.findata.org")
   # load.packages("FinancialInstrument", repos="http://R-Forge.R-project.org")
-  # "dataframe" is not permitted no CRAN from R 3.0.0; see http://www.timhesterberg.net/r-packages 
-})
+  # "dataframe" is not permitted no CRAN from R 3.0.0; see http://www.timhesterberg.net/r-packages	
+  }
+#})
