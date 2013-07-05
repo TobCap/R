@@ -16,18 +16,6 @@ f. <- function(..., env = parent.frame()){
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-É… <- l. <- function(...) curry(f.(..., env = parent.frame()))
-### É… (lambda) is Unicode: U+03BB or \u03BB
-# É…(g, x, g(g(x)))(É…(y, y+1))(5) # run
-# f.(g, f.(x, g(g(x))))(f.(y, y+1))(5) # run
-# l.(g, l.(x, g(g(x))))(l.(y, y+1))(5)
-# l.(g, x, g(g(x)))(l.(y, y+1))(5)
-
-### http://www.angelfire.com/tx4/cus/combinator/birds.html
-# S <- f.(x, f.(y, f.(z, (x(z))(y(z)) )))
-# K <- f.(x, f.(y, x))
-# I <- S(K)(K) # f.(x, x) 
-
 curry <-  function(fun, env = parent.frame()) {
   recursiveCall <- function(len, arg){
     if (len == 0) return(do.call(fun, arg, envir = env))
@@ -42,6 +30,19 @@ curry <-  function(fun, env = parent.frame()) {
 # [1] 6
 # > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
 # [1] 6
+
+É… <- l. <- function(...) curry(f.(..., env = parent.frame()))
+### Address of É… (lambda) in Unicode is U+03BB or \u03BB
+# É…(g, x, g(g(x)))(É…(y, y+1))(5)
+# f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
+# l.(g, l.(x, g(g(x))))(l.(y, y+1))(5)
+# l.(g, x, g(g(x)))(l.(y, y+1))(5)
+
+### http://www.angelfire.com/tx4/cus/combinator/birds.html
+# S <- f.(x, f.(y, f.(z, (x(z))(y(z)) )))
+# K <- f.(x, f.(y, x))
+# I <- S(K)(K) # f.(x, x) 
+
 uncurry <- function(fun){
   function(...){
     args <- c(...)
@@ -265,8 +266,8 @@ fix. <- function(g) {f <- g(f)}
 # gen.memoizer <- function (use.global = FALSE) {
 gen.memoizer <- function(stored.env, reset.all = FALSE){
   if(missing(stored.env)) {
-    stored.env <-  tryCatch(as.environment("functional"),
-      error = function(e) {attach(NULL, name="functional")})
+    stored.env <-  tryCatch(as.environment("functionalProgramming.r"),
+      error = function(e) {attach(NULL, name="functionalProgramming.r")})
   } else {
     stopifnot(is.environment(stored.env))
   }
@@ -315,9 +316,9 @@ gen.tracer <- function () {
 }
 ###
 
-fib_maker <- function(f) {
-  function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
-}
+# fib_maker <- function(f) {
+#   function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
+# }
 # > fix.(fib_maker)(5)
 # [1] 5
 # > fix.(gen.tracer() %>>% fib_maker)(5)
