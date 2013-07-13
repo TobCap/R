@@ -127,6 +127,7 @@ apply.mat <- function(X, MARGIN, FUN, ...){
 ###
 cd <- function(dir) {
   if (missing(dir)) dir <- Sys.getenv("HOME")
+  if (!nzchar(dir)) stop("Enter valid directory path")
   on.exit(utils::setWindowTitle(getwd()))
   setwd(dir)
 }
