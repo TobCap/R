@@ -1,10 +1,23 @@
 ### functional operators
 
-### I define `f.` instead of `f` because `f` often causes conflicts in many sample codes.
+### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
-  d <- lapply(substitute(list(...)), identity)[-1]
-  as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env) 
+  d <- match.call(expand.dots = FALSE)$`...`
+  n <- length(d)
+  eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
 }
+# f. <- function(..., env = parent.frame()){
+#   d <- lapply(substitute(list(...)), identity)[-1]
+#   as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env) 
+# }
+# My first code which was commented above is bit slower than the current code.
+# See reference https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
+
+# f.(x, x * 2)
+# f.(x, y, x + y)
+# f.(x, x * 2)(3)
+# f.(x, y, x + y)(1)(2)
+
 ### saves to type anonymous function
 # > Reduce(function(x, y) x + y, 1:10)
 # [1] 55
