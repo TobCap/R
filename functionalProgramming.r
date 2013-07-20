@@ -525,7 +525,6 @@ nest.fun2 <- function(f, n){
 # num(3) %|>% mult %<|% num(5) %|% toInt
 
 # tail call optimization, not completely tested
-# Now it only works when the function `f` has arguments which use four basic arithmetic operaters; `+`, `-`, `*`, and `/`.
 tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   g <- function(){}
   body(g) <- cnv(body(f), match.call()[["f"]], quote(list))
@@ -533,11 +532,15 @@ tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   out.fun <- function(){
     f.arg.names <- names(formals(f))
     stop.var.name <- f.arg.names[[var.ind]]
+    inherited.env <- new.env(parent = environment(f))
+    for(i in seq_along(f.arg.names)) {
+      assign(f.arg.names[i], get(f.arg.names[i]), envir = inherited.env)
+    }
     is.first <- TRUE
     while(TRUE){
-      if(is.first) {environment(g) <- environment(); is.first <- FALSE}
+      if(is.first) {environment(g) <- inherited.env; is.first <- FALSE}
       if(environment(g)[[ f.arg.names[[var.ind]] ]] == stop.num) break
-      environment(g) <- list2env(stats:::setNames(g(), f.arg.names), envir = environment())
+      environment(g) <- list2env(stats:::setNames(g(), f.arg.names), envir = inherited.env)
     }
     return(environment(g)[[f.arg.names[[out.ind]]]])
   }
