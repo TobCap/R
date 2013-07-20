@@ -527,11 +527,12 @@ nest.fun2 <- function(f, n){
 # tail call optimization, not completely tested
 # Now it only works when the function `f` has arguments which use four basic arithmetic operaters; `+`, `-`, `*`, and `/`.
 tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
-  f.arg.names <- names(formals(f))
   g <- function(){}
   body(g) <- cnv(body(f), match.call()[["f"]], quote(list))
 
   out.fun <- function(){
+    f.arg.names <- names(formals(f))
+    stop.var.name <- f.arg.names[[var.ind]]
     is.first <- TRUE
     while(TRUE){
       if(is.first) {environment(g) <- environment(); is.first <- FALSE}
