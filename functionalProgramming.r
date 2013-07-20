@@ -529,14 +529,14 @@ nest.fun2 <- function(f, n){
 tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   f.arg.names <- names(formals(f))
   g <- function(){}
-  body(g) <- cnv(body(f), as.list(match.call())[["f"]], quote(list))
+  body(g) <- cnv(body(f), match.call()[["f"]], quote(list))
   is.first <- TRUE
 
   out.fun <- function(){
     while(TRUE){
       if(is.first) {environment(g) <- environment(); is.first <<- FALSE}
-      if(as.list(environment(g))[[ f.arg.names[[var.ind]] ]] == stop.num) break
-      environment(g) <- list2env(stats:::setNames(g(), f.arg.names))
+      if(environment(g)[[ f.arg.names[[var.ind]] ]] == stop.num) break
+      environment(g) <- list2env(stats:::setNames(g(), f.arg.names), envir = environment())
     }
     return(environment(g)[[f.arg.names[[out.ind]]]])
   }
@@ -545,10 +545,10 @@ tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   return(out.fun)
 }
 
-# sum.rec <- function(n, acc = 0){
-#   if(n == 0) acc
-#   else sum.rec(n - 1, acc + n)
-# }
+sum.rec <- function(n, acc = 0){
+  if(n == 0) acc
+  else sum.rec(n - 1, acc + n)
+}
 # > sum.rec(10)
 # [1] 55
 # > sum.rec(1e5)
