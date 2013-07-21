@@ -64,6 +64,32 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 `%!in%` <- Negate(`%in%`)
 `%??%` <- function(x, y) if(is.null(x)) y else x
 
+# extended list definition; can refer to other variables 
+# list2(x = 1, y = x)
+# list2(x = 1:5, y = 1, z=length(x))
+# list2(x = 1, y = x + 10,z = y * 2)
+# list2(x = 1:10, y = x + 1, z = sum(x))
+# list2(x = y, y = 10, z = y + 3)
+# z <- 1000; list2(x = z, y = x + 1); rm(z)
+# list2(x = z, y = 10 + x, z = y + 3) #circuler reference
+# list2(m = matrix(1:12,4,3), nr = nrow(m), nc = ncol(m))
+# list2(x = 1, y = function(k) x * k)
+list2 <- function(..., envir = parent.frame()){
+  l <- as.list(match.call(expand.dots=FALSE)$...)
+  simplify <- function(lst, toplst, env = envir) {
+    if(length(lst) == 1 && !is.symbol(lst)){
+      lst
+    } else if(length(lst) == 1 && is.symbol(lst)) {
+      tryCatch({tmp <- eval(lst, toplst, env); if (is.function(tmp)) lst else tmp},
+        error = function(e) lst)
+    } else if (is.language(lst)){
+      tmp <- lapply(lst, simplify, toplst = toplst, env = envir)
+      tryCatch(eval(as.call(tmp), toplst, envir), error = function(e) as.call(tmp))
+    } 
+  }
+  lapply(l, simplify, toplst = l, envir)
+}
+
 # faster functions
 load.packages("plyr"); lapply.seq <- plyr:::loop_apply;
 # install.package("rbenchmark"); library("rbenchmark")
