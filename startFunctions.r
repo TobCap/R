@@ -63,6 +63,11 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 
 `%!in%` <- Negate(`%in%`)
 `%??%` <- function(x, y) if(is.null(x)) y else x
+`%**%` <- function(mat, n, acc = diag(1, dim(mat))){
+  if (n == 0) acc
+  else if (n %% 2 == 0) Recall(mat %*% mat, n / 2, acc)
+  else Recall(mat, n - 1, mat %*% acc)
+}
 
 # extended list definition; can refer to other variables 
 # list2(x = 1, y = x)
