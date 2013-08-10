@@ -431,21 +431,41 @@ call.list.cnv <- function(f.arg){
   cnv(f.arg)
 }
 
-# cnv(quote(x+y^z), quote(z), quote(m))
-cnv <- function(expr, before, after){
-  stopifnot(is.language(expr), length(before) == 1)
-  conv <- function(x){
-        if (is.pairlist(x)) {
-          # names are only converted within formals's arguments; pairlist.
-          ind <- match(as.character(before), names(x))
-          names(x)[ind] <- as.character(after)
-          as.pairlist(lapply(x, conv))
-        } else if (length(x) == 1) {
-          if(x == before) after else x
-        } else as.call(lapply(x, conv))
-      }
-  conv(expr)    
+# auxiliay function
+.quote.if.not <- function(.x){
+  expr.original <- eval(substitute(substitute(.x)), parent.frame())
+  var.name.first <- as.character(expr.original)[[1]] 
+  if (var.name.first %in% c("quote", "as.name", "as.symbol")) .x
+  else if (var.name.first == "expression") expr.original[[2]]
+  else expr.original
 }
+
+# replace variable name
+cnv <- function(expr, before, after, allow.non.quote = TRUE){
+  if (allow.non.quote && exists(".quote.if.not", envir = parent.env(environment()), mode="function")) {
+    expr <- .quote.if.not(expr)
+    before <- .quote.if.not(before)
+    after <- .quote.if.not(after)
+  }
+  conv <- function(x) {
+    if (is.pairlist(x)) {
+      # for function's arguments and its names
+      ind <- match(as.character(before), names(x))
+      names(x)[ind] <- as.character(after)
+      as.pairlist(lapply(x, conv))
+    } else if (length(x) == 1) {
+      if (x == before) after
+      else x
+    }
+    else as.call(lapply(x, conv))
+  }
+  conv(expr)
+}
+# cnv(quote(x+y*z), quote(y), quote(www))
+# cnv(x + y ^ z, y, www)
+# cnv(x + y ^ z, y, as.name("www"))
+# cnv(expression(x + y ^ z), y, www)
+
 # > cnv(quote(1+2+x^3), quote(x), quote(y))
 # 1 + 2 + y^3
 # > cnv(quote(1+2+x^3), quote(2), quote(99))
@@ -456,15 +476,15 @@ cnv <- function(expr, before, after){
 # > eval(cnv(quote(1+2+x^3) , quote(`+`), quote(`-`)), list(x = 2))
 # [1] -9
 
+# arguments need to be quoted
 nest.formula <- function(expr, variable, num){
   if (num == 1) return(expr)
-  else cnv(nest.formula(expr, variable, num - 1), variable, expr)
+  else cnv(nest.formula(expr, variable, num - 1), variable, expr, FALSE)
 }
 # > nest.formula(quote(sqrt(1+x^2)), quote(x), 3)
 # sqrt(1 + sqrt(1 + sqrt(1 + x^2)^2)^2)
 # > eval(nest.formula(quote(1+1/x), quote(x), 40), list(x = 1)) == (1+sqrt(5))/2
 # [1] TRUE
-
 
 ### tail recursive
 nest.fun <- function(f, n, acc.fun = identity){
