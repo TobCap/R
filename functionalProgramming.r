@@ -547,7 +547,7 @@ nest.fun2 <- function(f, n){
 # tail call optimization, not completely tested
 tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   g <- function(){}
-  body(g) <- cnv(body(f), match.call()[["f"]], quote(list))
+  body(g) <- cnv(body(f), sys.call()[[2]], quote(list), FALSE)
 
   out.fun <- function(){
     f.arg.names <- names(formals(f))
