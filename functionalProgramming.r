@@ -591,27 +591,21 @@ sum.rec <- function(n, acc = 0){
 # > tco(pow.rec, var.ind = 2)(2, 10) # designate the second argument of tco.
 # [1] 1024
 
-lang2char  <- function(expr, type = c("rexp", "sexp")){
+lang2char <- function(expr, type = c("rexp", "sexp")){
   type <- match.arg(type)
-  f <- if(type == "rexp") `[` else `[[`
-  coll <- if(type == "rexp") ", " else  " "
-  pst <- if(type == "rexp") function(first, rest) paste0(first, "(", rest, ")")
-         else function(first, rest) paste0("(", first, " ", rest, ")")
-
+  if(exists(".quote.if.not", envir = parent.env(environment()), mode="function"))
+    expr <- .quote.if.not(expr)
+  stopifnot(length(expr) > 1)
+  
+  r <- list(fst = function(x) as.character(list(x[[1]])), coll = ", ", print = function(first, rest) paste0(first, "(", rest, ")"))
+  s <- list(fst = function(x) as.character(x[[1]]), coll = " ", print = function(first, rest) paste0("(", first, " ", rest, ")")) 
+  . <- if(type == "rexp") r else s
+  
   as.char <- function(k){
-    first <- as.character(f(k, 1))
-    rest <- paste(
-      lapply(k[-1], function(x) {
-        if(is.list(x)) as.char(x) else as.character(x)
-      }) , collapse = coll)
-    if(nchar(rest) > 0) pst(first, rest) else first
+    rest <- paste0(lapply(k[-1], function(x) {if(length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
+    .$print(.$fst(k), rest)
   }
-  c2l <- function(x){
-    call2list <- function(e)
-      if(length(e) == 1) return(e) else lapply(e, call2list)
-    if(!typeof(x) == "list") call2list(x) else x
-  }
-  noquote(as.char(c2l(expr)))
+  noquote(as.char(expr))
 }
 
 # > lang2char(quote(x+sin(y*z)))
