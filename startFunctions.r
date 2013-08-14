@@ -163,6 +163,11 @@ cd <- function(dir) {
   setwd(dir)
 }
 
+### get current order of lapply or vapply
+current.order <- function() sys.call(sys.parent())[[2]][[3]]
+# lapply(letters[3:5], function(x) current.order())
+# vapply(letters[3:5], function(x) current.order(), 0) 
+
 ###
 rm.variables <- function(env = .GlobalEnv) {
   rm(list = setdiff(utils::ls.str(envir = env), utils::lsf.str(envir = env)), envir= env)
