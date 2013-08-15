@@ -2,7 +2,10 @@
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
-  d <- match.call(expand.dots = FALSE)$`...`
+  # d <- match.call(expand.dots = FALSE)$`...`
+  # the above does not resolve when ... is passed by other wraped function.
+  d <- as.pairlist(lapply(substitute(list(...)), identity)[-1])
+  # need to be pairlist when ... is nothing; NULL
   n <- length(d)
   eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
 }
@@ -10,13 +13,14 @@ f. <- function(..., env = parent.frame()){
 #   d <- lapply(substitute(list(...)), identity)[-1]
 #   as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env) 
 # }
-# My first code which was commented above is bit slower than the current code.
+# The above commented code which I made first time is bit slower than the current code.
 # See reference https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
 
 # f.(x, x * 2)
 # f.(x, y, x + y)
 # f.(x, x * 2)(3)
-# f.(x, y, x + y)(1)(2)
+# f.(x, y, x + y)(1, 2)
+# f.(x, f.(y, x + y))(1)(2)
 
 ### saves to type anonymous function
 # > Reduce(function(x, y) x + y, 1:10)
@@ -28,14 +32,33 @@ f. <- function(..., env = parent.frame()){
 # [1] 3
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
+curry <-  function(fun, env = parent.frame()) {
+  recursiveCall <- function(len, arg){
+    if (len == 0) return(do.call(fun, arg, envir = env))
+    function(x) recursiveCall(len - 1, append(arg, list(x)))
+  }
+  recursiveCall(length(formals(target.fun)), list())
+}
 
 curry <-  function(fun, env = parent.frame()) {
   recursiveCall <- function(len, arg){
     if (len == 0) return(do.call(fun, arg, envir = env))
     function(x) recursiveCall(len - 1, append(arg, list(x)))
   }
-  recursiveCall(length(formals(fun)), list())
+  fun.orig <- substitute(fun)
+  target.fun <- 
+    if(length(fun.orig) > 1 && fun.orig[[1]] == quote(flip)) eval(fun.orig[[2]])
+    else fun
+  recursiveCall(length(formals(args(target.fun))), list())
 }
+
+# plus2 <- curry(`+`)(2)
+# plus2(10) # 12
+
+### flip is defined below
+# div10 <- curry(flip(`/`))(10)
+# div10(24) # = 2.4
+
 # > curry(function(x, y, z) x + y + z)(1)(2)(3)
 # [1] 6
 ### `f.` is already defined above and save your typing.
@@ -70,37 +93,19 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip.lr <- function(FUN){
-  function(l, r) match.fun(FUN)(r, l)
-}
-### example
-# > flip.lr(Reduce)(1:10, f.(x, y, x+y))
-# [1] 55
-
 flip <- function(FUN, l = 1, r = 2){
-  # if argments of FUN have dot-dot-dot(...), be careful to use 
-  if(typeof(FUN) != "closure")
-    stop("It only works when typeof(FUN) is closure.")
-  args.old <- formals(FUN)
-  if(l <= 0 || r <= l || length(args.old) < r)
-    stop("0 < l < r <= length(args(FUN))")
+  args.orig <- formals(args(match.fun(FUN)))
+  stopifnot(l < r && 2 <= r && l < length(args.orig))
     
-  args.new <- unlist(
-    lapply(seq_along(args.old), function(k) {
-      if(k == l) args.old[r]
-      else if(k == r) args.old[l]
-      else args.old[k]
-    }),
-  recursive = FALSE)
-  
-  as.function(c(tools:::as.alist.call(args.new), body(FUN)))
+  function(...) {
+    dots <- list(...)
+    dots[c(r, l)] <- dots[c(l, r)]
+    do.call(FUN, dots)
+  }
 }
 ### example
-# > sapply(1:4, sqrt)
-# [1] 1.000000 1.414214 1.732051 2.000000
-# > sapply(sqrt, 1:4)
-#  以下にエラー match.fun(FUN) : 
-#    '1:4' は関数、文字、またはシンボルではありません 
+# > flip(`-`)(2, 5)
+# [1] 3
 # > flip(sapply)(sqrt, 1:4)
 # [1] 1.000000 1.414214 1.732051 2.000000
 
