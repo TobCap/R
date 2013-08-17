@@ -37,7 +37,7 @@ curry <-  function(fun, env = parent.frame()) {
     if (len == 0) return(do.call(fun, arg, envir = env))
     function(x) recursiveCall(len - 1, append(arg, list(x)))
   }
-  recursiveCall(length(formals(target.fun)), list())
+  recursiveCall(length(formals(args(target.fun))), list())
 }
 
 curry <-  function(fun, env = parent.frame()) {
@@ -95,8 +95,8 @@ uncurry <- function(fun){
 ###
 flip <- function(FUN, l = 1, r = 2){
   args.orig <- formals(args(match.fun(FUN)))
-  stopifnot(l < r && 2 <= r && l < length(args.orig))
-    
+  stopifnot(1 < r && l < length(args.orig) && l < r)
+
   function(...) {
     dots <- list(...)
     dots[c(r, l)] <- dots[c(l, r)]
@@ -113,16 +113,14 @@ flip <- function(FUN, l = 1, r = 2){
 # Œ‹‹Ç mapply
 zip. <- function(..., FUN = list){
   dot.args <- list(...)
-  args.len <- min(vapply(dot.args, length, 0))
-  new.args <- lapply(dot.args, function(x) x[1:args.len])
-  do.call(mapply, c(FUN = FUN, new.args, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+  args.seq <- seq_len(min(vapply(dot.args, length, 0)))
+  args.new <- lapply(dot.args, function(x) x[args.seq])
+  do.call(mapply, c(FUN = FUN, args.new, SIMPLIFY = FALSE, USE.NAMES = FALSE))
 }
 
 zipWith. <- function(fun, ..., do.unlist = FALSE) {
-  if (do.unlist)
-    unlist(zip.(..., FUN = match.fun(fun)))
-  else
-    zip.(..., FUN = match.fun(fun))
+  if (do.unlist) unlist(zip.(..., FUN = match.fun(fun)))
+  else zip.(..., FUN = match.fun(fun))
 }
 
 # zip.(list(1,2,3), list(4,5,6))
