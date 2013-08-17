@@ -32,32 +32,21 @@ f. <- function(..., env = parent.frame()){
 # [1] 3
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
-curry <-  function(fun, env = parent.frame()) {
-  recursiveCall <- function(len, arg){
-    if (len == 0) return(do.call(fun, arg, envir = env))
-    function(x) recursiveCall(len - 1, append(arg, list(x)))
-  }
-  recursiveCall(length(formals(args(target.fun))), list())
-}
 
 curry <-  function(fun, env = parent.frame()) {
   recursiveCall <- function(len, arg){
     if (len == 0) return(do.call(fun, arg, envir = env))
     function(x) recursiveCall(len - 1, append(arg, list(x)))
   }
-  fun.orig <- substitute(fun)
-  target.fun <- 
-    if(length(fun.orig) > 1 && fun.orig[[1]] == quote(flip)) eval(fun.orig[[2]])
-    else fun
-  recursiveCall(length(formals(args(target.fun))), list())
+  recursiveCall(length(formals(args(fun))), list())
 }
 
 # plus2 <- curry(`+`)(2)
 # plus2(10) # 12
 
 ### flip is defined below
-# div10 <- curry(flip(`/`))(10)
-# div10(24) # = 2.4
+# divBy10 <- curry(flip(`/`))(10)
+# divBy10(24) # = 2.4
 
 # > curry(function(x, y, z) x + y + z)(1)(2)(3)
 # [1] 6
@@ -96,21 +85,26 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip <- function(FUN, l = 1, r = 2){
-  args.orig <- formals(args(match.fun(FUN)))
+flip <- function(.fun, l = 1, r = 2){
+  args.orig <- formals(args(match.fun(.fun)))
   stopifnot(1 < r && l < length(args.orig) && l < r)
-
-  function(...) {
-    dots <- list(...)
-    dots[c(r, l)] <- dots[c(l, r)]
-    do.call(FUN, dots)
+  .fun.name <- as.character(substitute(.fun))
+  out.fun <- function() {
+    args. <- as.pairlist(lapply(match.call(), force)[-1])
+    args.[c(r, l)] <- args.[c(l, r)]
+    do.call(.fun.name, args.)
   }
+  formals(out.fun) <- args.orig
+  out.fun
 }
+
 ### example
 # > flip(`-`)(2, 5)
 # [1] 3
 # > flip(sapply)(sqrt, 1:4)
 # [1] 1.000000 1.414214 1.732051 2.000000
+# > flip(sapply)(round, 1:10/100, 2)
+#  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
 # avoiding conflict with utils::zip
 # Œ‹‹Ç mapply
