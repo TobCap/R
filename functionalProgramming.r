@@ -5,7 +5,7 @@ f. <- function(..., env = parent.frame()){
   # d <- match.call(expand.dots = FALSE)$`...`
   # the above does not resolve when ... is passed by other wraped function.
   d <- as.pairlist(lapply(substitute(list(...)), identity)[-1])
-  # need to be pairlist when ... is nothing; NULL
+  # need to be pairlist to return NULL when ... is nothing
   n <- length(d)
   eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
 }
@@ -79,11 +79,14 @@ curry <-  function(fun, env = parent.frame()) {
 # K <- f.(x, f.(y, x))
 # I <- S(K)(K) # f.(x, x) 
 
-uncurry <- function(fun){
+# see https://gist.github.com/TobCap/6255395
+uncurry <- function(fun){ 
   function(...){
-    args <- c(...)
-    if (length(args) == 1) fun(args[1])
-    else uncurry(fun(args[1]))(args[-1])
+    rec <- function(f, dots){
+      if(length(dots) == 0) f
+      else rec(f(dots[[1]]), dots[-1])
+    }
+    rec(fun, list(...))
   }
 }
 # > g <- function(x) function(y) function(z) x + y + z
