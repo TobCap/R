@@ -61,7 +61,14 @@ curry <- function (fun, env = parent.frame()) {
 # > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
 # [1] 6
 
-λ <- l. <- function(...) curry(f.(..., env = parent.frame()))
+# unsurpported: if one of fun's arguments is dot-dot-dot, it does not work
+# > call("rnorm", 5, 100)
+# rnorm(5, 100)
+# > curry(call)("rnorm")(5)(100)
+# エラー:  関数でないものを適用しようとしました 
+
+
+λ <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
@@ -90,14 +97,14 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip <- function(.fun, l = 1, r = 2){
+flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
   args.orig <- formals(args(match.fun(.fun)))
   stopifnot(1 < r && l < length(args.orig) && l < r)
   .fun.name <- as.character(substitute(.fun))
   out.fun <- function() {
     args. <- as.pairlist(lapply(match.call(), force)[-1])
     args.[c(r, l)] <- args.[c(l, r)]
-    do.call(.fun.name, args.)
+    do.call(.fun.name, args., env)
   }
   formals(out.fun) <- args.orig
   out.fun
@@ -106,10 +113,16 @@ flip <- function(.fun, l = 1, r = 2){
 ### example
 # > flip(`-`)(2, 5)
 # [1] 3
+
 # > flip(sapply)(sqrt, 1:4)
 # [1] 1.000000 1.414214 1.732051 2.000000
+
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
+
+# > Dx <- curry(flip(D))("x")
+# > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
+# 10 * (9 * (8 * (7 * (6 * x^5))))
 
 ###
 # fun compares vecter elements next to each other
