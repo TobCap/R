@@ -38,7 +38,7 @@ curry <- function (fun, env = parent.frame()) {
   recursiveCall <- function(len, arg) {
     if (len == 0) return(do.call(fun, arg, envir = env, quote = has.quoted))
     function(x) {
-      if(is.language(x) || is.symbol(x) || is.expression(x)) has.quoted <<- TRUE
+      if(is.language(x)) has.quoted <<- TRUE
       recursiveCall(len - 1, append(arg, list(x)))}}
   recursiveCall(length(formals(args(fun))), list())
 }
