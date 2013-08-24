@@ -61,7 +61,7 @@ curry <- function (fun, env = parent.frame()) {
 # > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
 # [1] 6
 
-ƒÉ <- l. <- function(...) curry(f.(..., env = parent.frame()))
+ƒÉ <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
 ### Address of ƒÉ (lambda) in Unicode is U+03BB or \u03BB
 # ƒÉ(g, x, g(g(x)))(ƒÉ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
@@ -90,14 +90,14 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip <- function(.fun, l = 1, r = 2){
+flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
   args.orig <- formals(args(match.fun(.fun)))
   stopifnot(1 < r && l < length(args.orig) && l < r)
   .fun.name <- as.character(substitute(.fun))
   out.fun <- function() {
     args. <- as.pairlist(lapply(match.call(), force)[-1])
     args.[c(r, l)] <- args.[c(l, r)]
-    do.call(.fun.name, args.)
+    do.call(.fun.name, args., env)
   }
   formals(out.fun) <- args.orig
   out.fun
