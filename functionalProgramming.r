@@ -1,4 +1,4 @@
-### functional operators
+ï»¿### functional operators
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
@@ -65,12 +65,12 @@ curry <- function (fun, env = parent.frame()) {
 # > call("rnorm", 5, 100)
 # rnorm(5, 100)
 # > curry(call)("rnorm")(5)(100)
-# ƒGƒ‰[:  ŠÖ”‚Å‚È‚¢‚à‚Ì‚ğ“K—p‚µ‚æ‚¤‚Æ‚µ‚Ü‚µ‚½ 
+# ã‚¨ãƒ©ãƒ¼:  é–¢æ•°ã§ãªã„ã‚‚ã®ã‚’é©ç”¨ã—ã‚ˆã†ã¨ã—ã¾ã—ãŸ 
 
 ### curried function creator
-ƒÉ <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
-### Address of ƒÉ (lambda) in Unicode is U+03BB or \u03BB
-# ƒÉ(g, x, g(g(x)))(ƒÉ(y, y+1))(5)
+Î» <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
+### Address of Î» (lambda) in Unicode is U+03BB or \u03BB
+# Î»(g, x, g(g(x)))(Î»(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5)
 # l.(g, x, g(g(x)))(l.(y, y+1))(5)
@@ -162,7 +162,7 @@ flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
 
 ###
 # avoiding conflict with utils::zip
-# Œ‹‹Ç mapply
+# çµå±€ mapply
 zip. <- function(..., FUN = list){
   dot.args <- list(...)
   args.seq <- seq_len(min(vapply(dot.args, length, 0)))
@@ -196,7 +196,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 # .reduce(:+);
 # end
 # func([10,20,30,40,50]);
-# ¨ 400
+# â†’ 400
 
 ### http://neue.cc/2011/02/14_302.html
 "%|>%" <- function(x, f) f(x)
@@ -316,8 +316,8 @@ fix. <- function(g) {f <- g(f)}
 
 ### Y g =  g (Y g)
 ### g = Y(f), f(g) = g
-### Y = ƒÉfE(ƒÉxEf (x x)) (ƒÉxEf (x x))
-### Z = ƒÉf.(ƒÉx.f (ƒÉy. x x y)) (ƒÉx.f (ƒÉy. x x y))
+### Y = Î»fãƒ»(Î»xãƒ»f (x x)) (Î»xãƒ»f (x x))
+### Z = Î»f.(Î»x.f (Î»y. x x y)) (Î»x.f (Î»y. x x y))
 
 # mult_maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
 # > microbenchmark(fix0(mult_maker)(100),fix1(mult_maker)(100),fix2(mult_maker)(100), fix3(mult_maker)(100), fix4(mult_maker)(100))
@@ -376,7 +376,7 @@ gen.tracer <- function () {
   function(f) {
     function(...){
       key <- paste(list(...), collapse=",")
-      num <<- num + 1 # key‚æ‚è‰º‚Å‚È‚¢‚Æ‚¢‚¯‚È‚¢ •›ì—p‚Ì•¾ŠQ
+      num <<- num + 1 # keyã‚ˆã‚Šä¸‹ã§ãªã„ã¨ã„ã‘ãªã„ å‰¯ä½œç”¨ã®å¼Šå®³
       cat(num, if(num <= 3) switch(num, "st", "nd", "rd") else "th", " call with argument: ", key, "\n", sep = "")
       f(...)
     }
@@ -631,7 +631,7 @@ sum.rec <- function(n, acc = 0){
 # > sum.rec(10)
 # [1] 55
 # > sum.rec(1e5)
-# ƒGƒ‰[F  protect()FƒvƒƒeƒNƒVƒ‡ƒ“ƒXƒ^ƒbƒN
+# ã‚¨ãƒ©ãƒ¼ï¼š  protect()ï¼šãƒ—ãƒ­ãƒ†ã‚¯ã‚·ãƒ§ãƒ³ã‚¹ã‚¿ãƒƒã‚¯
 # > tco(sum.rec)(1e5)
 # [1] 5000050000
 
@@ -641,8 +641,8 @@ sum.rec <- function(n, acc = 0){
 #   else pow.rec(x, n - 1, x * acc)
 # }
 # > tco(pow.rec)(2, 10)
-# ˆÈ‰º‚ÉƒGƒ‰[ setNames(g(), f.arg.names) : 
-# 'names' ‘®« [3] ‚ÍƒxƒNƒgƒ‹ [1] ‚Ì’·‚³‚Æ“¯‚¶‚Å‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñ 
+# ä»¥ä¸‹ã«ã‚¨ãƒ©ãƒ¼ setNames(g(), f.arg.names) : 
+# 'names' å±æ€§ [3] ã¯ãƒ™ã‚¯ãƒˆãƒ« [1] ã®é•·ã•ã¨åŒã˜ã§ãªã‘ã‚Œã°ãªã‚Šã¾ã›ã‚“ 
 # > tco(pow.rec, var.ind = 2)(2, 10) # designate the second argument of tco.
 # [1] 1024
 
