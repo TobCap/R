@@ -106,6 +106,43 @@ flip <- function(.fun, l = 1, r = 2){
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
+###
+# fun compares vecter elements next to each other
+.compare <- function(fun, vals){
+  out.fun <- function(vals){
+    if(length(vals) == 1) TRUE
+    else if(is.na(vals[[1]])) NA
+    else if(!fun(vals[[1]], vals[[2]])) FALSE
+    else out.fun(vals[-1])
+  }
+  out.fun(vals)
+}
+
+.compare.vec <- function(fun, vals, type = c("all", "any")){
+  all.or.any <- match.fun(match.arg(type))
+  all.or.any(match.fun(fun)(vals[-length(vals)], vals[-1]))
+}
+
+`<.`  <- function(.) .compare(`<` , .) # .compare.vec("<" , .)
+`<=.` <- function(.) .compare(`<=`, .) # .compare.vec("<=", .)
+`>.`  <- function(.) .compare(`>` , .) # .compare.vec("<" , .)
+`>=.` <- function(.) .compare(`>=`, .) # .compare.vec("<=", .)
+`==.` <- function(.) .compare(`==`, .) # .compare.vec("==", .)
+# `!=` is not a transitive relation, so '!=.' cannnot be defined as the same way. 
+
+# `<.`(1:100)
+# `<=.`(c(1:100,99))
+
+.compare.element <- function(vals, default.val){
+  if(length(vals) == 0) default.val
+  else if(is.na(vals[[1]])) NA
+  else if(!vals[[1]] == default.val) !default.val
+  else .compare.element(vals[-1], default.val)
+}
+.all <- function(x) .compare.element(x, TRUE)
+.any <- function(x) .compare.element(x, FALSE)
+
+###
 # avoiding conflict with utils::zip
 # Œ‹‹Ç mapply
 zip. <- function(..., FUN = list){
