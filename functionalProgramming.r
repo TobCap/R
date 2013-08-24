@@ -531,7 +531,7 @@ nest.fun <- function(f, n, acc.fun = identity){
   else nest.fun(f, n - 1, compose.(f, acc.fun))
 }
 nest.fun2 <- function(f, n){
-  if (n == 0) function(x) identity(x)
+  if (n == 0) identity
   else compose.(f, nest.fun2(f, n - 1))
 }
 # > benchmark(tail.rec = nest.fun(function(x) {x}, 100)(0), simple = nest.fun2(function(x) {x}, 100)(0), replications=1e4)[,1:4]
