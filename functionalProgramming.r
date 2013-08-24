@@ -33,16 +33,21 @@ f. <- function(..., env = parent.frame()){
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-curry <-  function(fun, env = parent.frame()) {
-  recursiveCall <- function(len, arg){
-    if (len == 0) return(do.call(fun, arg, envir = env))
-    function(x) recursiveCall(len - 1, append(arg, list(x)))
-  }
+curry <- function (fun, env = parent.frame()) {
+  has.quoted <- FALSE
+  recursiveCall <- function(len, arg) {
+    if (len == 0) return(do.call(fun, arg, envir = env, quote = has.quoted))
+    function(x) {
+      if(is.language(x) || is.symbol(x) || is.expression(x)) has.quoted <<- TRUE
+      recursiveCall(len - 1, append(arg, list(x)))}}
   recursiveCall(length(formals(args(fun))), list())
 }
 
 # plus2 <- curry(`+`)(2)
 # plus2(10) # 12
+
+# curry(D)(quote(x^5))("x")
+# previous version of `curry` does not run on above code.
 
 ### flip is defined below
 # divBy10 <- curry(flip(`/`))(10)
