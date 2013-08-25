@@ -16,6 +16,19 @@ f. <- function(..., env = parent.frame()){
 # The above commented code which I made first time is bit slower than the current code.
 # See reference https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
 
+# arrow operator 
+`%=>%` <- function(lhs, rhs, env = parent.frame()){
+  if (length(l <- substitute(lhs)) == 1) d <- l
+  else d <- as.pairlist(lapply(l, identity)[-1])
+  eval(call("function", as.pairlist(tools:::as.alist.call(d)), substitute(rhs)), env)
+}
+
+# x %=>% {x + 1}
+# c(x, y) %=>% {x + y}
+# c(x=1, y) %=>% {x + y}
+# {x; y} %=>% {x + y} 
+# {x=1; y} %=>% {x + y} # not run
+
 # f.(x, x * 2)
 # f.(x, y, x + y)
 # f.(x, x * 2)(3)
