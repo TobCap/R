@@ -49,7 +49,7 @@ f. <- function(..., env = parent.frame()){
 curry <- function (fun, env = parent.frame()) {
   has.quoted <- FALSE
   recursiveCall <- function(len, arg) {
-    if (len == 0) return(do.call(fun, arg, envir = env, quote = has.quoted))
+    if (len == 0) return(do.call(fun, arg, quote = has.quoted, envir = env))
     function(x) {
       if(is.language(x)) has.quoted <<- TRUE
       recursiveCall(len - 1, append(arg, list(x)))}}
@@ -117,7 +117,7 @@ flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
   out.fun <- function() {
     args. <- as.pairlist(lapply(match.call(), force)[-1])
     args.[c(r, l)] <- args.[c(l, r)]
-    do.call(.fun.name, args., env)
+    do.call(.fun.name, args., envir = env)
   }
   formals(out.fun) <- args.orig
   out.fun
