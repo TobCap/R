@@ -21,7 +21,7 @@ f. <- function(..., env = parent.frame()){
 # arrow operator 
 `%=>%` <- function(lhs, rhs, env = parent.frame()){
   if (length(l <- substitute(lhs)) == 1) d <- l
-  else d <- as.pairlist(lapply(l, identity)[-1])
+  else d <- as.pairlist(as.list(l)[-1])
   eval(call("function", as.pairlist(tools:::as.alist.call(d)), substitute(rhs)), env)
 }
 
