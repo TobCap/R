@@ -3,9 +3,11 @@
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
   # d <- match.call(expand.dots = FALSE)$`...`
-  # the above does not resolve when ... is passed by other wraped function.
-  d <- as.pairlist(lapply(substitute(list(...)), identity)[-1])
+  # the above does not resolve when ... is passed by other 
+  # wraped function unless using its option 'call'.
+  d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
   # need to be pairlist to return NULL when ... is nothing
+  
   n <- length(d)
   eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
 }
