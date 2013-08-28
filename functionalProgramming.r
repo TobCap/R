@@ -2,9 +2,7 @@
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
-  # d <- match.call(expand.dots = FALSE)$`...`
-  # the above does not resolve when ... is passed by other 
-  # wraped function unless using its option 'call'.
+  # see how to handle `...` https://gist.github.com/TobCap/ae8d26a5183e53518635
   d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
   # need to be pairlist to return NULL when ... is nothing
   
@@ -20,11 +18,12 @@ f. <- function(..., env = parent.frame()){
 
 # arrow operator 
 `%=>%` <- function(lhs, rhs, env = parent.frame()){
-  if (length(l <- substitute(lhs)) == 1) d <- l
-  else d <- as.pairlist(as.list(l)[-1])
-  eval(call("function", as.pairlist(tools:::as.alist.call(d)), substitute(rhs)), env)
+  l <- substitute(lhs)
+  if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1])
+  eval(call("function", as.pairlist(tools:::as.alist.call(l)), substitute(rhs)), env)
 }
 
+# {} %=>% {x + 2}
 # x %=>% {x + 1}
 # c(x, y) %=>% {x + y}
 # c(x=1, y) %=>% {x + y}
