@@ -2,7 +2,7 @@
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
-  # see how to handle `...` https://gist.github.com/TobCap/ae8d26a5183e53518635
+  # see how to handle `...` https://gist.github.com/TobCap/6366396
   d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
   # need to be pairlist to return NULL when ... is nothing
   
@@ -257,7 +257,7 @@ compose. <- function(f, g) function(x) f(g(x))
 ### I use "..", "." is already used in "package:plyr".
 ### not fast but easy to read and understand because of using fewer parentheses.
 "%|%" <- function(lhs, rhs){
-  ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
+  ans <- eval(substitute(rhs), envir = list(.. = lhs))  
   if (is.function(ans))
     ans(lhs)  
   else if (all(typeof(ans)=="logical", length(lhs)==length(ans)))
