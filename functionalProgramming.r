@@ -2,9 +2,9 @@
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
-  # see how to handle `...` https://gist.github.com/TobCap/6366396
+  # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...` 
   d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
-  # need to be pairlist to return NULL when ... is nothing
+  # need to be pairlist to return NULL when nothing is passed to `...`.
   
   n <- length(d)
   eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
@@ -14,7 +14,8 @@ f. <- function(..., env = parent.frame()){
 #   as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env) 
 # }
 # The above commented code which I made first time is bit slower than the current code.
-# See reference https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
+# See https://gist.github.com/TobCap/6255804 for comparison of cost of creating funciton.
+# See also https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
 
 # arrow operator 
 `%=>%` <- function(lhs, rhs, env = parent.frame()){
