@@ -697,28 +697,24 @@ nest.fun2 <- function(f, n){
 # num(3) %|>% mult %<|% num(5) %|% toInt
 
 # tail call optimization, not completely tested
-tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
-  g <- function(){}
-  body(g) <- replace.symbol(body(f), sys.call()[[2]], quote(list), FALSE)
+tco <- function(f){
+  # f is copied object; the original f is not changed.
+  f.orig <- substitute(f) 
+  body(f) <- replace.multi(body(f), c(quote(Recall), f.orig), quote(list)) 
+  arg.names <- names(formals(f))
 
   out.fun <- function(){
-    f.arg.names <- names(formals(f))
-    stop.var.name <- f.arg.names[[var.ind]]
-    inherited.env <- new.env(parent = environment(f))
-    for(i in seq_along(f.arg.names)) {
-      assign(f.arg.names[i], get(f.arg.names[i]), envir = inherited.env)
-    }
-    is.first <- TRUE
+    environment(f) <- e <- list2env(mget(arg.names), parent = environment(f))
     while(TRUE){
-      if(is.first) {environment(g) <- inherited.env; is.first <- FALSE}
-      if(environment(g)[[ f.arg.names[[var.ind]] ]] == stop.num) break
-      environment(g) <- list2env(stats:::setNames(g(), f.arg.names), envir = inherited.env)
+      ans <- f() # evaluate
+      if (length(ans) == 1 && !is.list(ans)) break
+      e <- list2env(stats:::setNames(ans, arg.names), envir = e) #update values
     }
-    return(environment(g)[[f.arg.names[[out.ind]]]])
+    return(ans)
   }
-  
   formals(out.fun) <- formals(f)
-  return(out.fun)
+  formals(f) <- NULL # makes "f" find variables in "e".
+  out.fun
 }
 
 sum.rec <- function(n, acc = 0){
@@ -745,17 +741,17 @@ sum.rec <- function(n, acc = 0){
 
 lang2char <- function(expr, type = c("rexp", "sexp")){
   type <- match.arg(type)
-  if(exists(".quote.if.not", envir = parent.env(environment()), mode="function"))
-    expr <- .quote.if.not(expr)
-  stopifnot(length(expr) > 1)
+  stopifnot(is.call(expr))
   
-  r <- list(fst = function(x) as.character(list(x[[1]])), coll = ", ", print = function(first, rest) paste0(first, "(", rest, ")"))
-  s <- list(fst = function(x) as.character(x[[1]]), coll = " ", print = function(first, rest) paste0("(", first, " ", rest, ")")) 
+  r <- list(fst = function(x) as.character(list(x[[1]])), coll = ", ", print.out = function(first, rest) paste0(first, "(", rest, ")"))
+  s <- list(fst = function(x) as.character(x[[1]]), coll = " ", print.out = function(first, rest) paste0("(", first, " ", rest, ")")) 
   . <- if(type == "rexp") r else s
   
   as.char <- function(k){
-    rest <- paste0(lapply(k[-1], function(x) {if(length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
-    .$print(.$fst(k), rest)
+    .$print.out(
+      first = .$fst(k),
+      rest = paste0(lapply(k[-1], function(x) {if(length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
+    )
   }
   noquote(as.char(expr))
 }
