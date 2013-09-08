@@ -490,9 +490,26 @@ gen.tracer <- function () {
 
 ### I refered to http://d.hatena.ne.jp/einblicker/20110108/1294448477, http://d.hatena.ne.jp/einblicker/20110113/1294920315
 
+
+### language object operater
+symbol.tracker <- function(., n = 1, strict = TRUE) {
+  # see https://gist.github.com/TobCap/6473028
+  if(strict) stopifnot(n <= sys.parent())
+  stack.adjust <- 2
+  tmp1 <- quote(substitute(.))
+  for(i in seq_len(n)){
+    tmp1 <- call("substitute", tmp1)
+  }
+  tmp2 <- tmp1
+  for(i in seq_len(n)){
+    tmp2 <- call("eval", tmp2, substitute(parent.frame(k), list(k = i + stack.adjust)))
+  }
+  eval(tmp2)
+}
+
 ### convert call to list and vice versa
 call.list.cnv <- function(f.arg){
-  arg.is.lang <- is.language(f.arg)
+  arg.is.lang <- is.call(f.arg)
   cnv <- function(x){
     if (length(x) == 1) x
     else if (is.pairlist(x)) as.pairlist(lapply(x, cnv))
@@ -500,56 +517,121 @@ call.list.cnv <- function(f.arg){
   }
   cnv(f.arg)
 }
+as.list.recursive <- function(x) {stopifnot(is.call(x)); call.list.cnv(x)}
+as.call.recursive <- function(x) {stopifnot(is.list(x)); call.list.cnv(x)}
 
-# auxiliay function
-.quote.if.not <- function(.x){
-  expr.original <- eval(substitute(substitute(.x)), parent.frame())
-  var.name.first <- as.character(expr.original)[[1]] 
-  if (var.name.first %in% c("quote", "as.name", "as.symbol")) .x
-  else if (var.name.first == "expression") expr.original[[2]]
-  else expr.original
+# language replacement
+# see https://gist.github.com/TobCap/6348892 
+replace.symbol <- function(expr, before, after){
+  stopifnot(is.language(expr))
+  before.after.list <- list(after)
+  names(before.after.list)[[1]] <- deparse(before)
+  eval(substitute(substitute(e, before.after.list), list(e = expr)))
 }
 
-# replace variable name
-cnv <- function(expr, before, after, allow.non.quote = TRUE){
-  if (allow.non.quote && exists(".quote.if.not", envir = parent.env(environment()), mode="function")) {
-    expr <- .quote.if.not(expr)
-    before <- .quote.if.not(before)
-    after <- .quote.if.not(after)
-  }
+replace.call <- function(expr, before, after){
+  stopifnot(is.language(expr))
   conv <- function(x) {
-    if (is.pairlist(x)) {
-      # for function's arguments and its names
-      ind <- match(as.character(before), names(x))
-      names(x)[ind] <- as.character(after)
+    if(is.pairlist(x) && !is.null(x)) {
+      if(is.symbol(before)){ # for formal parameter
+        ind <- match(as.character(before), names(x))
+        names(x)[ind] <- as.character(after)
+      }
       as.pairlist(lapply(x, conv))
-    } else if (length(x) == 1) {
-      if (x == before) after
-      else x
     }
+    else if(identical(x, before)) after
+    else if(length(x) == 1 || is.null(x)) x
     else as.call(lapply(x, conv))
   }
   conv(expr)
 }
-# cnv(quote(x+y*z), quote(y), quote(www))
-# cnv(x + y ^ z, y, www)
-# cnv(x + y ^ z, y, as.name("www"))
-# cnv(expression(x + y ^ z), y, www)
 
-# > cnv(quote(1+2+x^3), quote(x), quote(y))
+replace.multi <- function(expr, befores, after, replace.fun = replace.symbol){
+  out.lang <- expr
+  for(i in seq_along(befores)){
+    out.lang <- replace.fun(out.lang, befores[[i]], after)
+  }
+  out.lang
+}
+
+replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE){
+  stopifnot(is.language(expr))
+  if(can.accept.undefined.var) {
+    stopifnot(exists("accept.undefined.var"))
+    before <- accept.undefined.var(before)
+    after <- accept.undefined.var(after)
+  }
+  # before is passed as list even though it is a single symbole
+  before <- 
+    if (is.function(before)) before 
+    else if (is.list(before) || is.expression(before)) as.list(before) 
+    else list(before) # Being passed to function `matched` requires to be list object.
+  after <- if (is.expression(after)) as.list(after) else after
+  
+  matched <- 
+    if(is.function(before)) before 
+    else function(m) any(vapply(before, identical, logical(1), m))
+    
+  conv <- function(x) {
+    if(is.pairlist(x) && !is.null(x)) {
+      if(is.function(before)){
+        ind <- match(TRUE, sapply(lapply(names(x), as.name), before))
+        names(x)[ind] <- as.character(after)
+      } else if(is.symbol(before[[1]])){       
+        ind <- match(as.character(before), names(x))
+        names(x)[ind] <- as.character(after)
+      }
+      as.pairlist(lapply(x, conv))
+    }
+    else if(matched(x)) after
+    else if(length(x) == 1 || is.null(x)) x
+    else as.call(lapply(x, conv))
+  }
+  conv(expr)
+}
+ 
+accept.undefined.var <- function(.x) {
+  # undefined handling
+  is.defined <- tryCatch(nchar(.x) && TRUE, error = function(e) FALSE)
+  
+  expr <- eval.parent(substitute(substitute(.x)))
+  lang.fun.names <- c("quote", "expression", "as.name", "as.symbol", "call")
+  is.list.vector <- !is.symbol(expr) && (expr[[1]] == quote(c) || expr[[1]] == quote(list))
+  w <- function(x) warning(
+    paste0("the '", x,"' is an existing language object,so not interpreted as undefined variable"))
+ 
+  force.lang <- function(y){
+    var.name.first <- as.character(y)[[1]]
+    if(var.name.first %in% lang.fun.names[1:2]) y[[2]] # quote or expression
+    else if(var.name.first %in% lang.fun.names[3:5]) eval(y) # as.symbol, as.name or call
+    else if(is.defined && is.character(y)) parse(text = y)[[1]] # character 
+    else if(is.defined && is.language(eval(y))) {w(var.name.first); eval(y)} # assigned language object
+    else y # undefined, not language object, or not character object
+  }
+  
+  if(is.list.vector) lapply(as.list(expr)[-1], force.lang)
+  else force.lang(expr)
+}
+
+# replace.symbol(quote(x+y*z), quote(y), quote(www))
+# replace.lang(quote(x + y ^ z), y, www, TRUE)
+
+# > replace.symbol(quote(1+2+x^3), quote(x), quote(y))
 # 1 + 2 + y^3
-# > cnv(quote(1+2+x^3), quote(2), quote(99))
-# 1 + 99 + x^3
+# > replace.symbol(quote(1+2+x^3), quote(2), quote(99)) 
+# 1 + 2 + x^3 # cannot replace value
+# > replace.call(quote(1+2+x^3), quote(2), quote(99))
+# 1 + 99 + x^3 # ok
 
-# > cnv(quote(1+2+x^3) , quote(`+`), quote(`-`))
+# > replace.symbol(quote(1+2+x^3) , quote(`+`), quote(`-`))
 # 1 - 2 - x^3
-# > eval(cnv(quote(1+2+x^3) , quote(`+`), quote(`-`)), list(x = 2))
+# > eval(replace.symbol(quote(1+2+x^3) , quote(`+`), quote(`-`)), list(x = 2))
 # [1] -9
 
 # arguments need to be quoted
 nest.formula <- function(expr, variable, num){
   if (num == 1) return(expr)
-  else cnv(nest.formula(expr, variable, num - 1), variable, expr, FALSE)
+  else replace.symbol(nest.formula(expr, variable, num - 1), variable, expr)
 }
 # > nest.formula(quote(sqrt(1+x^2)), quote(x), 3)
 # sqrt(1 + sqrt(1 + sqrt(1 + x^2)^2)^2)
@@ -617,7 +699,7 @@ nest.fun2 <- function(f, n){
 # tail call optimization, not completely tested
 tco <- function(f, var.ind = 1, out.ind = length(formals(f)), stop.num = 0){
   g <- function(){}
-  body(g) <- cnv(body(f), sys.call()[[2]], quote(list), FALSE)
+  body(g) <- replace.symbol(body(f), sys.call()[[2]], quote(list), FALSE)
 
   out.fun <- function(){
     f.arg.names <- names(formals(f))
