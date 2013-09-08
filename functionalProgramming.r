@@ -696,7 +696,8 @@ nest.fun2 <- function(f, n){
 # toInt(mult(num(3))(num(5)))
 # num(3) %|>% mult %<|% num(5) %|% toInt
 
-# tail call optimization, not completely tested
+# tail call optimization
+# see https://gist.github.com/TobCap/6482462 
 tco <- function(f){
   # f is copied object; the original f is not changed.
   f.orig <- substitute(f) 
@@ -730,14 +731,12 @@ sum.rec <- function(n, acc = 0){
 
 # pow.rec <- function(x, n, acc = 1){
 #   if(n == 0) acc
-#   else if(n %% 2 == 0) pow.rec(x * x, n / 2, acc)
 #   else pow.rec(x, n - 1, x * acc)
 # }
-# > tco(pow.rec)(2, 10)
-# 以下にエラー setNames(g(), f.arg.names) : 
-# 'names' 属性 [3] はベクトル [1] の長さと同じでなければなりません 
-# > tco(pow.rec, var.ind = 2)(2, 10) # designate the second argument of tco.
-# [1] 1024
+# > pow.rec(1+1e-5, 1e5)
+#  エラー:  評価があまりに深く入れ子になっています。無限の再帰か options(expressions=)？ 
+# > tco(pow.rec)(1+1e-5, 1e5)
+# [1] 2.718268
 
 lang2char <- function(expr, type = c("rexp", "sexp")){
   type <- match.arg(type)
@@ -746,13 +745,9 @@ lang2char <- function(expr, type = c("rexp", "sexp")){
   r <- list(fst = function(x) as.character(list(x[[1]])), coll = ", ", print.out = function(first, rest) paste0(first, "(", rest, ")"))
   s <- list(fst = function(x) as.character(x[[1]]), coll = " ", print.out = function(first, rest) paste0("(", first, " ", rest, ")")) 
   . <- if(type == "rexp") r else s
+  .$rst <- function(k) paste0(lapply(k, function(x) {if(length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
   
-  as.char <- function(k){
-    .$print.out(
-      first = .$fst(k),
-      rest = paste0(lapply(k[-1], function(x) {if(length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
-    )
-  }
+  as.char <- function(k) .$print.out(first = .$fst(k), rest = .$rst(k[-1]))
   noquote(as.char(expr))
 }
 
