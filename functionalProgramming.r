@@ -232,31 +232,10 @@ compose. <- function(f, g) function(x) f(g(x))
 # > f5(1)
 # f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
 
-### I refer to the code in help("Reduce")
-### only works when value is at first or end and functions, rest of args, require one argument.
-# `<--` <- function(...){
-  # Reduce("%<|%", list(...), right = TRUE)
-# }
-# `-->` <- function(...){
-  # Reduce("%|>%", list(...), right = FALSE)
-# } 
-# > `-->`(1:5, f.(x, x-1), f.(x, x*10))
-# [1]  0 10 20 30 40
-# `<<--` <- function(...){
-    # Funcall <- function(f, ...) f(...)
-    # function(x) Reduce(Funcall, list(...), x, right = TRUE)
-# }
-# `-->>` <- function(...){
-    # Funcall <- function(f, ...) f(...)
-    # function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
-# }
-# `-->>`(f.(x, x-1), f.(x, x*10))(1:5)
-# [1]  0 10 20 30 40
-
-### pipeline like operator
-### left value can be passed by ".." just like scala's underscore "_".
-### I use "..", "." is already used in "package:plyr".
-### not fast but easy to read and understand because of using fewer parentheses.
+### Pipeline like operator
+### Left value can be passed by ".." just like scala's underscore "_".
+### I use ".."; "." is already used in "package:plyr".
+### It is not fast but easy to read and understand because of using fewer parentheses.
 "%|%" <- function(lhs, rhs){
   ans <- eval(substitute(rhs), envir = list(.. = lhs))  
   if (is.function(ans))
@@ -294,6 +273,28 @@ compose. <- function(f, g) function(x) f(g(x))
 #   c(0, ..)}) %|% 
 # replicate(n=1000, ..()) %|% 
 # matplot(.., type = "l", ann = FALSE);
+
+`<--` <- function(...){
+  Reduce("%<|%", list(...), right = TRUE)
+}
+`-->` <- function(...){
+  Reduce("%|>%", list(...), right = FALSE)
+}
+ 
+# > `-->`(1:5, f.(x, x-1), f.(x, x*10))
+# [1]  0 10 20 30 40
+ 
+`<<--` <- function(...){
+    Funcall <- function(f, ...) f(...)
+    function(x) Reduce(Funcall, list(...), x, right = TRUE)
+}
+`-->>` <- function(...){
+    Funcall <- function(f, ...) f(...)
+    function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
+}
+ 
+# > `-->>`(f.(x, x-1), f.(x, x*10))(1:5)
+# [1]  0 10 20 30 40
 
 ### invokes interceptor; the idea comes from underscore javascript.
 ### it easy to debug.
