@@ -346,36 +346,36 @@ fix. <- function(g) {f <- g(f)}
 
 ### refers to javascript.
 ### http://d.hatena.ne.jp/r-west/20090422/1240400570
-# gen.memoizer <- function (use.global = FALSE) {
-gen.memoizer <- function(stored.env, reset.all = FALSE){
-  if(missing(stored.env)) {
-    stored.env <-  tryCatch(as.environment("functionalProgramming.r"),
-      error = function(e) {attach(NULL, name="functionalProgramming.r")})
-  } else {
-    stopifnot(is.environment(stored.env))
-  }
+gen.memoizer <- function(stored.env, reset = FALSE){
+  if(missing(stored.env))
+    stored.env <- tryCatch(as.environment("functionalProgramming.r"),
+      error = function(e) attach(NULL, name="functionalProgramming.r"))
   
-  if(exists(".memo", envir = stored.env) & !reset.all) {
-    .memo <- get(".memo", envir = stored.env)
-  } else {
-    .memo <- assign(".memo", new.env(), envir = stored.env)
-  }
+  stopifnot(is.environment(stored.env))
+  
+  .memo <- 
+    if(exists(".memo", envir = stored.env)) get(".memo", envir = stored.env)
+    else assign(".memo", new.env(parent = emptyenv()), envir = stored.env)
+  
+  if(reset) return(invisible(rm(list = ls(.memo, all = T), envir = .memo)))
   
   function(f) {
-    #fun.names <- paste0(lapply(sys.calls(), `[`, 1), collapse = ",")
-    all.funs <- lapply(sys.calls(), 
-      function(x) as.call(lapply(x, function(y) if(!is.language(y)) NULL else y))
-    )
-    fun.names <- paste0(all.funs, collapse = ",")
-    if (!exists(fun.names, envir = .memo)) 
-      assign(fun.names, new.env(), envir = .memo)
+    n <- sys.parent() - 1 # adhoc, need to investigate and modify
+    fun.names <- 
+      if (n > 0) paste0(deparse(sys.function(n)), collapse = "")
+      else paste0(deparse(f), collapse="")
+    
     function(...){
       key <- paste0(c(...), collapse=",")
-      if (is.null(.memo[[fun.names]][[key]])) .memo[[fun.names]][[key]] <- f(...)
+      if (!exists(fun.names, envir = .memo)) 
+        assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
+      if(is.null(.memo[[fun.names]][[key]]))
+        .memo[[fun.names]][[key]] <- f(...)
       .memo[[fun.names]][[key]]
     }
   }
 }
+
 # previous simple version
 # gen.memoizer <- function () {
   # function(f) {
@@ -399,9 +399,7 @@ gen.tracer <- function () {
 }
 ###
 
-# fib_maker <- function(f) {
-#   function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
-# }
+fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # > fix.(fib_maker)(5)
 # [1] 5
 # > fix.(gen.tracer() %>>% fib_maker)(5)
@@ -420,9 +418,10 @@ gen.tracer <- function () {
 # 13th call with argument: 0
 # 14th call with argument: 1
 # [1] 5
-### see the chart in http://mitpress.mit.edu/sicp/full-text/sicp/book/node16.html
-### and compare it with above outputs.
+## see the chart in http://mitpress.mit.edu/sicp/full-text/sicp/book/node16.html
+## and compare it with above outputs.
 
+### gen.memoizer() needs to be just leftside of memoizing function
 # > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
 # 1st call with argument: 4
 # 2nd call with argument: 3
@@ -431,18 +430,18 @@ gen.tracer <- function () {
 # 5th call with argument: 0
 # [1] 5
 
-### all results are the same, but memoized only if input is after the second execution.
+### all results are the same
 # fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
 # (gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.)(5)
 # {gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.}(5)
 # 5 %|>% {gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.}
 # gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix. %<|% 5
 
-### gen.memoizer() set results into `.memo` in a given environment.
-### gen.memoizer(reset.all = TRUE) resets and creates a new `.memo` in the given environment.
+# gen.memoizer() set results into `.memo` in a given environment.
+# gen.memoizer(reset = TRUE) resets objects in `.memo`.
 
-# > invisible(gen.memoizer(reset.all = TRUE)) # reset
-# > ls(.memo)
+# > gen.memoizer(reset = TRUE) # reset
+# > ls(.memo, all=T)
 # character(0)
 
 # > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
@@ -464,32 +463,30 @@ gen.tracer <- function () {
 # [1] 13
 
 # > ls(.memo)
-# [1] "fix.(gen.tracer() %>>% gen.memoizer(TRUE) %>>% fib_maker)(NULL),f(x),g(f(x))"
-#
-# > lapply(.memo, function(x) ls(x))
-# $`fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(NULL),f(x),g(f(x))`
+# [1] "function (x) if (x <= 1) x else f(x - 1) + f(x - 2)"
+
+# > eapply(.memo, ls)
+# $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
 # [1] "0" "1" "2" "3" "4" "5" "6"
-#
-# > lapply(.memo, function(x) lapply(x, identity))
-# > lapply(.memo, function(x) rapply(as.list(x), identity))
-# $`fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(NULL),f(x),g(f(x))`
+
+# > eapply(.memo, sapply, identity)
+# $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
 # 0 1 2 3 4 5 6 
 # 0 1 1 2 3 5 8 
 
-# fib <- gen.memoizer()(function(x) if(x<=1) x else fib(x-1) + fib(x-2))
-# > fib(1000)
-# [1] 4.346656e+208
-# > tail(ls(as.list(.memo)[[2]]))
-# [1] "994" "995" "996" "997" "998" "999"
+# fib <- gen.memoizer()(function(x) if(x <= 1) x else fib(x - 1) + fib(x - 2))
+
+# > fib(500)
+# [1] 1.394232e+104
 
 # install.packages("gmp"); library("gmp")
 # > fib2 <- gen.memoizer()(function(x) if(x<=1) as.bigz(x) else fib2(x-1) + fib2(x-2))
-# > fib2(1000)
+# > fib2(500)
 # Big Integer ('bigz') :
-# [1] 43466557686937456435688527675040625802564660517371780402481729089536555417949051890403879840079255169295922593080322634775209689623239873322471161642996440906533187938298969649928516003704476137795166849228875
+# [1] # 139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125
 
-### I refered to http://d.hatena.ne.jp/einblicker/20110108/1294448477, http://d.hatena.ne.jp/einblicker/20110113/1294920315
-
+### http://d.hatena.ne.jp/einblicker/20110108/1294448477
+### http://d.hatena.ne.jp/einblicker/20110113/1294920315
 
 ### language object operater
 symbol.tracker <- function(., n = 1, strict = TRUE) {
