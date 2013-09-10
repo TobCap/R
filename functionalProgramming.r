@@ -629,10 +629,12 @@ accept.undefined.var <- function(.x) {
 # arguments need to be quoted
 nest.formula <- function(expr, variable, num){
   if (num == 1) return(expr)
-  else replace.symbol(nest.formula(expr, variable, num - 1), variable, expr)
+  else replace.call(nest.formula(expr, variable, num - 1), variable, expr)
 }
-# > nest.formula(quote(sqrt(1+x^2)), quote(x), 3)
-# sqrt(1 + sqrt(1 + sqrt(1 + x^2)^2)^2)
+# > nest.formula(quote((1+x)^2), quote(x), 3)
+# (1 + (1 + (1 + x)^2)^2)^2
+# > nest.formula(quote((1+x)^2), quote(1+x), 3)
+# (((1 + x)^2)^2)^2
 # > eval(nest.formula(quote(1+1/x), quote(x), 40), list(x = 1)) == (1+sqrt(5))/2
 # [1] TRUE
 
