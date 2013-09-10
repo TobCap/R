@@ -155,6 +155,21 @@ apply.mat <- function(X, MARGIN, FUN, ...){
 # > benchmark("ncol"=ncol(y), "[2]"=dim(y)[2], "[2L]"=dim(y)[2L], "[[2]]"=dim(y)[[2]], "[[2L]]"=dim(y)[[2L]], replications=1e5)[,1:5]
 # > benchmark("nrow"=nrow(y), "[1]"=dim(y)[1], "[1L]"=dim(y)[1L], "[[1]]"=dim(y)[[1]], "[[1L]]"=dim(y)[[1L]], replications=1e5)[,1:5]
 
+### lookup for matrix or data.frame
+lookup <- function(values, tbl, search.col = 1) {
+  stopifnot(is.data.frame(tbl), is.matrix(tbl))
+  
+  if(is.character(search.col))
+    search.col <- match(search.col, colnames(tbl))
+  stopifnot(!is.na(search.col))
+  
+  target <-  
+    if (search.col == 0) rownames(tbl)
+    else tbl[,search.col]
+    
+  tbl[target %in% values, ]
+}
+
 ###
 cd <- function(dir) {
   if (missing(dir)) dir <- Sys.getenv("HOME")
