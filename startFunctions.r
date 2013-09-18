@@ -79,20 +79,19 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 # list2(x = z, y = 10 + x, z = y + 3) #circuler reference
 # list2(m = matrix(1:12,4,3), nr = nrow(m), nc = ncol(m))
 # list2(x = 1, y = function(k) x * k)
-list2 <- function(..., envir = parent.frame()){
-  l <- as.list(match.call(expand.dots=FALSE)$...)
-  simplify <- function(lst, toplst, env = envir) {
-    if(length(lst) == 1 && !is.symbol(lst)){
-      lst
-    } else if(length(lst) == 1 && is.symbol(lst)) {
-      tryCatch({tmp <- eval(lst, toplst, env); if (is.function(tmp)) lst else tmp},
-        error = function(e) lst)
-    } else if (is.language(lst)){
-      tmp <- lapply(lst, simplify, toplst = toplst, env = envir)
-      tryCatch(eval(as.call(tmp), toplst, envir), error = function(e) as.call(tmp))
-    } 
+list2 <- function(..., env = parent.frame()){
+  args.orig <- as.list(match.call(expand.dots=FALSE)$...)
+  simplify <- function(lst) {
+    evaled.lst <- lst
+    for(i in seq_along(args.orig)){
+      evaled.lst <- eval(substitute(substitute(e, args.orig), list(e = evaled.lst)))
+    }
+    if(is.call(evaled.lst) && evaled.lst[[1]] != quote(`function`) && 
+      isTRUE(!all(sapply(all.vars(evaled.lst), exists, envir = env))))
+      stop("circulaer reference is not allowed")
+    eval(evaled.lst, args.orig, env)
   }
-  lapply(l, simplify, toplst = l, envir)
+  lapply(args.orig, simplify)
 }
 
 ## 
