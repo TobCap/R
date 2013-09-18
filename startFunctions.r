@@ -69,7 +69,7 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
   else Recall(mat, n - 1, mat %*% acc)
 }
 
-# extended list definition; can refer to other variables 
+## extended list definition; can refer to other variables 
 # list2(x = 1, y = x)
 # list2(x = 1:5, y = 1, z=length(x))
 # list2(x = 1, y = x + 10,z = y * 2)
@@ -95,65 +95,35 @@ list2 <- function(..., envir = parent.frame()){
   lapply(l, simplify, toplst = l, envir)
 }
 
-# faster functions
-load.packages("plyr"); lapply.seq <- plyr:::loop_apply;
-# install.package("rbenchmark"); library("rbenchmark")
-# benchmark(
-  # lapply(1:1e4, function(x){x}),
-  # lapply(seq_len(1e4), function(x){x}),
-  # lapply.seq(1e4, function(x){x})
-# )
+## 
 apply.mat <- function(X, MARGIN, FUN, ...){
-  if(!(MARGIN == 1 | MARGIN == 2)) stop("MARGIN must be 1 or 2.")
+  if(!(MARGIN == 1 || MARGIN == 2)) stop("MARGIN must be 1 or 2.")
   if(!is.matrix(X)) stop("X must be matrix")
+
   if(MARGIN == 1){
-    ans <- do.call(rbind, lapply.seq(nrow(X), function(z) FUN(X[z,], ...)))
-    `attributes<-`(ans, list(dim = dim(ans), dimnames = list(dimnames(X)[[1]], `if`(ncol(ans) == ncol(X), dimnames(X)[[2]], NULL))))
-  } else {
-    ans <- do.call(cbind, lapply.seq(ncol(X), function(z) FUN(X[,z], ...)))
-    `attributes<-`(ans, list(dim = dim(ans), dimnames = list(`if`(nrow(ans) == nrow(X), dimnames(X)[[1]], NULL), dimnames(X)[[2]])))
-  }
-} 
-# 'attributes<-' is faster than structure because of less copies.
-# apply.mat0 <- function(X, MARGIN, FUN, ...){
-  # if(!(MARGIN == 1 | MARGIN == 2)) stop("MARGIN must be 1 or 2.")
-  # if(!is.matrix(X)) stop("X must be matrix")
-  # if(MARGIN == 1){
-    # ans <- structure(do.call(rbind, lapply.seq(nrow(X), function(z) FUN(X[z,], ...))), dimnames = list(dimnames(X)[[1]], NULL))
-    # if(ncol(ans) == ncol(X)) colnames(ans) <- colnames(X)
-    # return(ans)
-  # } else {
-    # ans <- structure(do.call(cbind, lapply.seq(ncol(X), function(z) FUN(X[,z], ...))), dimnames = list(NULL, dimnames(X)[[2]]))
-    # if(nrow(ans) == nrow(X)) rownames(ans) <- rownames(X)
-    # return(ans)
-  # }
-# } 
+    ans <- do.call(rbind, lapply(seq_len(dim(X)[[MARGIN]]), function(z) FUN(X[z,], ...)))
+     `attributes<-`(ans, list(dim = dim(ans), dimnames = list(dimnames(X)[[1]], `if`(ncol(ans) == ncol(X), dimnames(X)[[2]],
+ NULL))))
+   } else {
+     ans <- do.call(cbind, lapply(seq_len(dim(X)[[MARGIN]]), function(z) FUN(X[,z], ...)))
+     `attributes<-`(ans, list(dim = dim(ans), dimnames = list(`if`(nrow(ans) == nrow(X), dimnames(X)[[1]], NULL),
+ dimnames(X)[[2]])))
+   }
+ }
 
-# xx <- matrix(1:4,2,2)
-# `attributes<-`(xx, list(dim=dim(xx), dimnames = list(letters[1:2], LETTERS[1:2])))
-# `attributes<-`(xx, c(list(dim=dim(xx)), list(dimnames = list(letters[1:2], LETTERS[1:2]))))
-#
-# > benchmark(l=list(a=1, b=list(2,3)), c=c(list(a=1), list(b=list(2,3))),replications=1e6, columns=1:4)
-  # test replications user.self sys.self
-# 2    c      1000000      4.15     0.01
-# 1    l      1000000      3.32     0.00
-
-# benchmark(x1 = 'if'(TRUE, 1, 0), x2 = .Primitive("if")(TRUE, 1, 0), x3 = if(TRUE) 1 else 0, replications=1e5)[,1:4]
-# almost equal time
+# 'attributes<-' is faster than structure because of less copies
 
 # m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste("x", 1:3, sep="")))
-# apply(m, 1, cumsum) ## transposed!
-# apply.mat(m, 1, cumsum) # the same layout
+# apply(m, 1, cumsum) ## dropped
+# apply.mat(m, 1, cumsum) # matrix layout
 #
-# m2 <- matrix(0, 1e3, 1e3)#
-# > benchmark(apply(m2, 1, sum), apply.mat(m2, 1, sum), rowSums(m2))[,1:4]
-#                    test replications elapsed relative
-# 1     apply(m2, 1, sum)          100    4.38 3.421875
-# 2 apply.mat(m2, 1, sum)          100    1.28 1.000000
-
-# y <- matrix(0, 1e3, 1e3)
-# > benchmark("ncol"=ncol(y), "[2]"=dim(y)[2], "[2L]"=dim(y)[2L], "[[2]]"=dim(y)[[2]], "[[2L]]"=dim(y)[[2L]], replications=1e5)[,1:5]
-# > benchmark("nrow"=nrow(y), "[1]"=dim(y)[1], "[1L]"=dim(y)[1L], "[[1]]"=dim(y)[[1]], "[[1L]]"=dim(y)[[1L]], replications=1e5)[,1:5]
+# m2 <- matrix(0, 1e3, 1e3)
+# > microbenchmark(apply=apply(m2, 1, sum), apply.mat = apply.mat(m2, 1, sum), rowSums=rowSums(m2))
+# Unit: milliseconds
+#       expr       min       lq     median         uq       max neval
+#      apply 56.161379 93.45846 114.844119 119.433256 126.45192   100
+#  apply.mat 24.092916 44.84445  52.180738  54.140633  84.65420   100
+#    rowSums  4.125745  7.26764   9.172035   9.301981  10.17059   100
 
 ### lookup for matrix or data.frame
 lookup <- function(values, tbl, search.col = 1) {
