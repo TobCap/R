@@ -127,7 +127,7 @@ apply.mat <- function(X, MARGIN, FUN, ...){
 
 ### lookup for matrix or data.frame
 lookup <- function(values, tbl, search.col = 1) {
-  stopifnot(is.data.frame(tbl), is.matrix(tbl))
+  stopifnot(is.data.frame(tbl) || is.matrix(tbl))
   
   if(is.character(search.col))
     search.col <- match(search.col, colnames(tbl))
