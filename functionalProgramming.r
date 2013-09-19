@@ -20,7 +20,7 @@ f. <- function(..., env = parent.frame()){
 # arrow operator 
 `%=>%` <- function(lhs, rhs, env = parent.frame()){
   l <- substitute(lhs)
-  if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1])
+  if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1]) # avoid list()
   eval(call("function", as.pairlist(tools:::as.alist.call(l)), substitute(rhs)), env)
 }
 
@@ -58,6 +58,43 @@ curry <- function (fun, env = parent.frame()) {
   recursiveCall(length(formals(args(fun))), list())
 }
 
+# particial application
+# an undercore symbol `_` is requited to bind variales
+ pa <- function(expr, e = parent.frame()){
+   all.vars <- all.names(substitute(expr), functions = FALSE)
+   underscores <- all.vars[grep("^\\_$|^\\_[0-9]+", all.vars)]
+   if(length(underscores) == 0) stop("binding variable must be start underscore")
+   created.formals <- tools:::as.alist.call(underscores[order(underscores)])
+
+   make.body <- function(args_){
+     if(length(args_) == 0) return(substitute(expr, parent.env(environment())))
+     call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+   }
+
+   eval(make.body(created.formals), e)
+ }
+# f1 <- pa(`_` * 2); f1(10)
+# f2 <- pa(D(`_`, "x")); f2(quote(x^4))
+# f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
+# 
+# g <- function(x, y, z, w) 1000*x+100*y+10*z+1*w
+# f3 <- pa(g(1, `_1`, 7, `_2`)); f3(3)(9)
+# f4 <- pa(g(1, `_2`, 7, `_1`)); f4(3)(9)
+
+# only closure is acceptable
+cr <- function(f, e = parent.frame()){
+   stopifnot(is.function(f) && typeof(f) == "closure")
+   make.body <- function(args_){
+     if(length(args_) == 0) return(body(f))
+     call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+   }
+   eval(make.body(formals(args(f))), envir = environment(f), enclos = e)
+ }
+
+# h1 <- cr(rnorm); h1(10)(100)(1)
+# h2 <- cr(rnorm)(10)(100); h2(1)
+# h3 <- cr(D); h3(quote(x^5))("x")
+# h4 <- cr(D)(quote(x^5)); h4("x")
 # plus2 <- curry(`+`)(2)
 # plus2(10) # 12
 
