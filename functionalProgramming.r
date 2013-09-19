@@ -274,7 +274,7 @@ compose. <- function(f, g) function(x) f(g(x))
 ### I use ".."; "." is already used in "package:plyr".
 ### It is not fast but easy to read and understand because of using fewer parentheses.
 "%|%" <- function(lhs, rhs){
-  ans <- eval(substitute(rhs), envir = list(.. = lhs))  
+  ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
   if (is.function(ans))
     ans(lhs)  
   else if (all(typeof(ans)=="logical", length(lhs)==length(ans)))
