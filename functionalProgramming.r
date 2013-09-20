@@ -222,6 +222,23 @@ zip. <- function(..., FUN = list){
   do.call(mapply, c(FUN = FUN, args.new, SIMPLIFY = FALSE, USE.NAMES = FALSE))
 }
 
+# zip2 <- function(x, y, FUN = list){
+#   if(length(x) == 0 || length(y) == 0) return(NULL)
+#   else append(list(FUN(x[[1]], y[[1]])), zip2(x[-1], y[-1], FUN = FUN))
+# }
+# zip3 <- function(x, y, z, FUN = list){
+#   if(length(x) == 0 || length(y) == 0 || length(z) == 0) return(NULL)
+#   else append(list(FUN(x[[1]], y[[1]]), z[[1]]), zip2(x[-1], y[-1], z[-1], FUN = FUN))
+# }
+# zip. <- function(... , FUN = list) {
+#   dot.args <- list(...)
+#   elem.len <- min(vapply(dot.args, length, 0))
+#   if(elem.len == 0) return(NULL)
+#   else append(
+#     list(do.call(FUN, lapply(dot.args, `[[`, 1))),
+#     do.call(zip., c(lapply(dot.args, `[`, -1), FUN = FUN)))
+# }
+
 zipWith. <- function(fun, ..., do.unlist = FALSE) {
   if (do.unlist) unlist(zip.(..., FUN = match.fun(fun)))
   else zip.(..., FUN = match.fun(fun))
