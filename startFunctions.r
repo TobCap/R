@@ -86,6 +86,12 @@ list2 <- function(..., env = parent.frame()){
     for(i in seq_along(args.orig)){
       evaled.lst <- eval(substitute(substitute(e, args.orig), list(e = evaled.lst)))
     }
+    ## recursive call is costly and slower than `for`
+    # make.call <- function(x){
+    #   if(length(x) == 0) return(lst)
+    #   else eval(substitute(substitute(e, args.orig), list(e = make.call(x[-1]))))
+    # }    
+    # evaled.lst <- make.call(substitute(lst))
     if(is.call(evaled.lst) && evaled.lst[[1]] != quote(`function`) && 
       isTRUE(!all(sapply(all.vars(evaled.lst), exists, envir = env))))
       stop("circulaer reference is not allowed")
