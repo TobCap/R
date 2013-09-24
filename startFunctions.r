@@ -63,10 +63,34 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 
 `%!in%` <- Negate(`%in%`)
 `%??%` <- function(x, y) if(is.null(x)) y else x
-`%**%` <- function(mat, n, acc = diag(1, dim(mat))){
+
+## matrix operation
+`%^%` <- `%**%` <- function(mat, n, acc = diag(1, dim(mat))){
   if (n == 0) acc
   else if (n %% 2 == 0) Recall(mat %*% mat, n / 2, acc)
   else Recall(mat, n - 1, mat %*% acc)
+}
+rot90 <- function(m, k = 1){
+  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  (function(M, n){
+    if(n == 0) return(M)
+    else if(n == 2) return(M[nrow(M):1, ncol(M):1])
+    else Recall(t(M)[ncol(M):1, ], n - 1)
+  })(m, as.integer(k) %% 4)
+}
+fliplr <- function(m){
+  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  m[, ncol(m):1]
+}
+flipud <- function(m){
+  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  m[nrow(m):1, ]
+}
+repmat <- function(m, nr, nc = nr) {
+  if(nr <= nc) 
+    do.call(cbind, rep(list(do.call(rbind, rep(list(m), nr))), nc))
+  else
+    do.call(rbind, rep(list(do.call(cbind, rep(list(m), nc))), nr))
 }
 
 ## extended list definition; can refer to other variables 
