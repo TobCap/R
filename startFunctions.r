@@ -88,9 +88,9 @@ flipud <- function(m){
 }
 repmat <- function(m, nr, nc = nr) {
   if(nr <= nc) 
-    do.call(cbind, rep(list(do.call(rbind, rep(list(m), nr))), nc))
+    do.call(cbind, rep.int(list(do.call(rbind, rep.int(list(m), nr))), nc))
   else
-    do.call(rbind, rep(list(do.call(cbind, rep(list(m), nc))), nr))
+    do.call(rbind, rep.int(list(do.call(cbind, rep.int(list(m), nc))), nr))
 }
 
 ## extended list definition; can refer to other variables 
