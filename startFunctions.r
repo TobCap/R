@@ -12,7 +12,7 @@ load.packages <- (function(){
       local.lib <- utils:::installed.packages()[,c("Package", "Version")]
     foundInCRAN <- TRUE
     
-    if(!identical(unname(repos.mem), unname(repos))){
+    if(!setequal(repos.mem, repos)){
       repos.mem <<- unique(c(repos.mem, repos))
       delayedAssign("cran.packages", {
           p("Accessing CRAN via Internet takes few seconds")
@@ -87,6 +87,7 @@ flipud <- function(m){
   m[nrow(m):1, ]
 }
 repmat <- function(m, nr, nc = nr) {
+  if(length(dim(m)) > 2) stop("over 3 dim is unacceptable")
   if(nr <= nc) 
     do.call(cbind, rep.int(list(do.call(rbind, rep.int(list(m), nr))), nc))
   else
@@ -191,4 +192,59 @@ rm.functions <- function(env = .GlobalEnv) {
 }
 rm.all <- function(env = .GlobalEnv) {
   rm(list = ls(all = TRUE, envir = env), envir = env)
+}
+
+### assignment
+## see examples in https://gist.github.com/TobCap/6713338
+## class is bound when assigning
+assign2 <- function(sym, init.val, check.funs = class, envir = parent.frame()) {
+  ## The idea of this function comes from makeActiveBinding's example.
+  ## Enter ?makeActiveBinding in R console.
+
+  checker <- c(check.funs)
+  if(!all(vapply(checker, is.function, FALSE)))
+    stop("check.funs must be function")
+
+  if(is.character(var.sym <- substitute(sym)))
+    var.sym <- as.symbol(var.sym)
+
+  x <- init.val
+  checked.x <- lapply(checker, function(f) f(x))
+  checked.x1 <- checked.x[[1]] # for speed-up when length(checked.funs) == 1
+
+  msg <- paste0(
+    "When assigning, the results of right-side's ",
+    if(length(checker) == 1) substitute(check.funs)
+    else paste0(as.character(as.list(substitute(check.funs))[-1]), collapse = " or "),
+    " are different from existing value.", collapse = "")
+
+  out.fun <- function(v) {
+    if (!missing(v)){
+      for(i in seq_along(checker))
+        if(checker[[i]](v) != checked.x[[i]])
+          stop(msg)
+      x <<- v
+    }
+    x
+  }
+  if(length(checker) == 1) # for speed-up
+  body(out.fun)[[2]][[3]][[2]] <- quote(if (check.funs(v) != checked.x1) stop(msg))
+
+  cat(var.sym, "is created!", "\n")
+  invisible(makeActiveBinding(var.sym, out.fun, envir))
+}
+
+## assign immutable variable
+assign3 <- function(var.char, val, envir = parent.frame()){
+  if(!is.character(var.char)) stop("1st argument must be character")
+  assign(var.char, val, envir = envir)
+  invisible(lockBinding(var.char, envir))
+}
+
+`%<-@%` <- function(lhs, rhs){
+  assign2(as.character(substitute(lhs)), rhs, envir = parent.frame())
+}
+
+`%<-!%` <- function(lhs, rhs) {
+  assign3(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
