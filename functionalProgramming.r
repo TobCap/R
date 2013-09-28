@@ -65,7 +65,9 @@ pa <- function(expr, e = parent.frame()){
   all.vars <- all.names(substitute(expr), functions = FALSE)
   underscores <- all.vars[grep("^\\_$|^\\_[0-9]+$", all.vars)]
   if(length(underscores) == 0)
-    stop("Binding variable must start with underscore and ends with numeric.")
+    stop("A binding variable must start with underscore and ends with numeric.")
+  if(anyDuplicated.default(underscores) > 0)
+    stop("Binding variables must be different from each other.")
   created.formals <- tools:::as.alist.call(underscores[order(underscores)])
 
   make.body <- function(args_){
