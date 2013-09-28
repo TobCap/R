@@ -220,9 +220,9 @@ flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
 # avoiding conflict with utils::zip
 # Œ‹‹Ç mapply
 zip. <- function(..., FUN = list){
-  dot.args <- list(...)
-  args.seq <- seq_len(min(vapply(dot.args, length, 0)))
-  args.new <- lapply(dot.args, function(x) x[args.seq])
+  dots <- list(...)
+  args.seq <- seq_len(min(vapply(dots, length, 0)))
+  args.new <- lapply(dots, function(x) x[args.seq])
   do.call(mapply, c(FUN = FUN, args.new, SIMPLIFY = FALSE, USE.NAMES = FALSE))
 }
 
@@ -235,12 +235,12 @@ zip. <- function(..., FUN = list){
 #   else append(list(FUN(x[[1]], y[[1]]), z[[1]]), zip2(x[-1], y[-1], z[-1], FUN = FUN))
 # }
 # zip. <- function(... , FUN = list) {
-#   dot.args <- list(...)
-#   elem.len <- min(vapply(dot.args, length, 0))
+#   dots <- list(...)
+#   elem.len <- min(vapply(dots, length, 0))
 #   if(elem.len == 0) return(NULL)
 #   else append(
-#     list(do.call(FUN, lapply(dot.args, `[[`, 1))),
-#     do.call(zip., c(lapply(dot.args, `[`, -1), FUN = FUN)))
+#     list(do.call(FUN, lapply(dots, `[[`, 1))),
+#     do.call(zip., c(lapply(dots, `[`, -1), FUN = FUN)))
 # }
 
 zipWith. <- function(fun, ..., do.unlist = FALSE) {
