@@ -376,7 +376,6 @@ tap <- function(x, fun) {
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
-<hear>
 ### see its calculation processes in https://gist.github.com/TobCap/6668817
 ### fixed-point combinator
 ### I tried to check four types of fixed-point combinator function and blow is the simplest and fastest
