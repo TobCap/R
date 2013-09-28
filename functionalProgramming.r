@@ -128,8 +128,8 @@ cr <- function(f, e = parent.frame()){
 ### Address of ƒÉ (lambda) in Unicode is U+03BB or \u03BB
 # ƒÉ(g, x, g(g(x)))(ƒÉ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
-# l.(g, l.(x, g(g(x))))(l.(y, y+1))(5)
-# l.(g, x, g(g(x)))(l.(y, y+1))(5)
+# l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
+# l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
 
 ### http://www.angelfire.com/tx4/cus/combinator/birds.html
 # S <- f.(x, f.(y, f.(z, (x(z))(y(z)) )))
