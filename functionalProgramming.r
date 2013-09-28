@@ -376,92 +376,105 @@ tap <- function(x, fun) {
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
+<hear>
+### see its calculation processes in https://gist.github.com/TobCap/6668817
 ### fixed-point combinator
 ### I tried to check four types of fixed-point combinator function and blow is the simplest and fastest
-fix. <- function(g) {f <- g(f)}
+fix. <- function(g) f <- g(f)
 
 ### http://en.wikipedia.org/wiki/Fixed-point_combinator
 
-# fix0 <- function(g) g(fix0(g))
-# fix1 <- function(g) f <- g(f)
+# fix0 <- function(g) f <- g(f)
+# fix1 <- function(g) g(fix1(g))
 # fix2 <- function(f) (function(x) f(x(x)) )(function(x) f(x(x)))
 # fix3 <- function(f) (function(x) f(function(y) x(x)(y)))(function(x) f(function(y) x(x)(y)))
 # fix4 <- function(f) (function(x) function(y) f(x(x))(y))(function(x) function(y) f(x(x))(y))
 
-### Y g =  g (Y g)
 ### g = Y(f), f(g) = g
-### Y = λf・(λx・f (x x)) (λx・f (x x))
+### Y g =  g(Y g)
+### Y = λf.(λx.f (x x)) (λx.f (x x))
 ### Z = λf.(λx.f (λy. x x y)) (λx.f (λy. x x y))
 
-# mult_maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
-# > microbenchmark(fix0(mult_maker)(100),fix1(mult_maker)(100),fix2(mult_maker)(100), fix3(mult_maker)(100), fix4(mult_maker)(100))
+# > mult.maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
+# > microbenchmark(fix0(mult.maker)(100),fix1(mult.maker)(100),fix2(mult.maker)(100), fix3(mult.maker)(100), fix4(mult.maker)(100))
 # Unit: microseconds
-# expr     min       lq   median       uq      max
-# 1 fix0(mult_maker)(100) 200.585 207.0100 211.7595 219.1625  289.423
-# 2 fix1(mult_maker)(100) 119.010 124.0385 126.9725 131.8615  191.086
-# 3 fix2(mult_maker)(100) 204.775 212.8770 217.6260 224.0510  302.553
-# 4 fix3(mult_maker)(100) 250.312 260.7875 267.2135 277.9690 1124.725
-# 5 fix4(mult_maker)(100) 250.591 263.3020 267.9115 279.7845 1121.372
+#                   expr      min        lq   median        uq      max neval
+#  fix0(mult.maker)(100)  499.726  505.2985  509.088  522.4610  824.258   100
+#  fix1(mult.maker)(100)  853.234  878.4210  887.336  923.4455 2320.313   100
+#  fix2(mult.maker)(100)  871.065  889.7885  899.150  920.3245 2251.663   100
+#  fix3(mult.maker)(100) 1114.910 1136.3075 1151.688 1226.8025 2951.100   100
+#  fix4(mult.maker)(100) 1115.802 1138.3135 1153.693 1195.8200 2729.991   100
 
 ### refers to javascript.
+### http://www.kmonos.net/wlog/52.php
 ### http://d.hatena.ne.jp/r-west/20090422/1240400570
-gen.memoizer <- function(stored.env, reset = FALSE){
-  if(missing(stored.env))
-    stored.env <- tryCatch(as.environment("functionalProgramming.r"),
-      error = function(e) attach(NULL, name="functionalProgramming.r"))
+
+# If you want to save .memo in a arbitrary environment, set a option like
+# options(storing.env = "your_arbitrary_env_name").
+# The naming is intented to avoid a conflict with library("memoise")
+memoizer <- function(f, envir, reset = FALSE){
+  if(!missing(reset) && !missing(f))
+    stop("if you simply reset, simply type as memoizer(reset = TRUE)")
   
-  stopifnot(is.environment(stored.env))
+  if(missing(envir)) {
+    e.name <- getOption("storing.env", default = ".GlobalEnv")
+    envir <- 
+      if(e.name == ".GlobalEnv") .GlobalEnv
+      else if(e.name %in% search()) as.environment(e.name)
+      else attach(NULL, name = e.name)
+  } else {
+    stopifnot(is.environment(envir))
+  }
   
   .memo <- 
-    if(exists(".memo", envir = stored.env)) get(".memo", envir = stored.env)
-    else assign(".memo", new.env(parent = emptyenv()), envir = stored.env)
+    if(exists(".memo", envir = envir, mode = "environment", inherits = FALSE))
+      get(".memo", envir = envir)
+    else
+      assign(".memo", new.env(parent = emptyenv()), envir = envir)
   
-  if(reset) return(invisible(rm(list = ls(.memo, all = T), envir = .memo)))
+  if(reset) return(invisible(
+    #rm(list = ls(.memo, all = T), envir = .memo)
+    eapply(.memo, function(x) rm(list = ls(x, all = TRUE), envir = x))
+    ))
   
-  function(f) {
-    n <- sys.parent() - 1 # adhoc, need to investigate and modify
-    fun.names <- 
-      if (n > 0) paste0(deparse(sys.function(n)), collapse = "")
-      else paste0(deparse(f), collapse="")
-    
-    function(...){
-      key <- paste0(c(...), collapse=",")
-      if (!exists(fun.names, envir = .memo)) 
-        assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
-      if(is.null(.memo[[fun.names]][[key]]))
-        .memo[[fun.names]][[key]] <- f(...)
-      .memo[[fun.names]][[key]]
-    }
+  fun.names <- paste0(deparse(f), collapse="")
+  if (!exists(fun.names, envir = .memo)) 
+    assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
+  
+  function(...){
+    key <- paste0(c(...), collapse=",")
+    # if (!exists(fun.names, envir = .memo)) 
+      # assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
+    if(is.null(.memo[[fun.names]][[key]]))
+      .memo[[fun.names]][[key]] <- f(...)
+    .memo[[fun.names]][[key]]
   }
 }
 
 # previous simple version
-# gen.memoizer <- function () {
-  # function(f) {
-    # function(...){
-      # key <- paste(list(...), collapse=",")
-      # if (is.null(.memo[[key]])) .memo[[key]] <- f(...)
-      # .memo[[key]]
-    # }
+# memoizer <- function(f) {
+  # function(...){
+    # key <- paste(list(...), collapse=",")
+    # if (is.null(.memo[[key]])) .memo[[key]] <- f(...)
+    # .memo[[key]]
   # }
 # }
-gen.tracer <- function () {
+
+tracer <- function(f) {
   num <- 0
-  function(f) {
-    function(...){
-      key <- paste(list(...), collapse=",")
-      num <<- num + 1 # keyより下でないといけない 副作用の弊害
-      cat(num, if(num <= 3) switch(num, "st", "nd", "rd") else "th", " call with argument: ", key, "\n", sep = "")
-      f(...)
-    }
+  function(...){
+    key <- paste(list(...), collapse=",")
+    num <<- num + 1 # keyより下でないといけない 副作用の弊害
+    cat(num, if(num <= 3) switch(num, "st", "nd", "rd") else "th", " call with argument: ", key, "\n", sep = "")
+    f(...)
   }
 }
-###
 
-fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
-# > fix.(fib_maker)(5)
+###
+fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
+# > fix.(fib.maker)(5)
 # [1] 5
-# > fix.(gen.tracer() %>>% fib_maker)(5)
+# > fix.(tracer %>>% fib.maker)(5)
 # 1st call with argument: 4
 # 2nd call with argument: 3
 # 3rd call with argument: 2
@@ -480,49 +493,56 @@ fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## see the chart in http://mitpress.mit.edu/sicp/full-text/sicp/book/node16.html
 ## and compare it with above outputs.
 
-### gen.memoizer() needs to be just leftside of memoizing function
-# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
+### memoizer() needs to directly take memoizing function.
+### In using %>>%, memoizer() needs to be just right-side of memoizing function.
+
+# > fix.(tracer %>>% fib.maker %>>% memoizer)(5)
+### or fix.(function(x) memoizer(fib.maker(tracer(x))))(5)
 # 1st call with argument: 4
 # 2nd call with argument: 3
 # 3rd call with argument: 2
 # 4th call with argument: 1
 # 5th call with argument: 0
+# 6th call with argument: 1
+# 7th call with argument: 2
+# 8th call with argument: 3
 # [1] 5
+#
+# > fix.(tracer %>>% fib.maker %>>% memoizer)(5)
+# [1] 5
+#
+### only new arguments are passed to calculation
+# > fix.(tracer %>>% fib.maker %>>% memoizer)(6)
+# 1st call with argument: 5
+# 2nd call with argument: 4
+# [1] 8
+#
+# > fix.(tracer %>>% fib.maker %>>% memoizer)(6)
+# [1] 8
 
 ### all results are the same
-# fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
-# (gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.)(5)
-# {gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.}(5)
-# 5 %|>% {gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix.}
-# gen.tracer() %>>% gen.memoizer() %>>% fib_maker %|>% fix. %<|% 5
+# fix.(tracer %>>% fib.maker %>>% memoizer )(5)
+# (tracer %>>% fib.maker %>>% memoizer %|>% fix.)(5)
+# {tracer %>>% fib.maker %>>% memoizer %|>% fix.}(5)
+# 5 %|>% {tracer %>>% fib.maker %>>% memoizer %|>% fix.}
+# tracer %>>% fib.maker %>>% memoizer %|>% fix. %<|% 5
 
-# gen.memoizer() set results into `.memo` in a given environment.
-# gen.memoizer(reset = TRUE) resets objects in `.memo`.
-
-# > gen.memoizer(reset = TRUE) # reset
-# > ls(.memo, all=T)
+### memoizer(reset = TRUE) resets objects in `.memo`.
+# > memoizer(reset = TRUE) 
+# > eapply(.memo, ls)
+# $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
 # character(0)
 
-# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
+# > fix.(tracer %>>% fib.maker %>>% memoizer)(5)
 # 1st call with argument: 4
 # 2nd call with argument: 3
 # 3rd call with argument: 2
 # 4th call with argument: 1
 # 5th call with argument: 0
+# 6th call with argument: 1
+# 7th call with argument: 2
+# 8th call with argument: 3
 # [1] 5
-
-### the result is memoised.
-# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(5)
-# [1] 5
-
-### only new arguments are passed to calculation
-# > fix.(gen.tracer() %>>% gen.memoizer() %>>% fib_maker)(7)
-# 1st call with argument: 6
-# 2nd call with argument: 5
-# [1] 13
-
-# > ls(.memo)
-# [1] "function (x) if (x <= 1) x else f(x - 1) + f(x - 2)"
 
 # > eapply(.memo, ls)
 # $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
@@ -533,19 +553,21 @@ fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # 0 1 2 3 4 5 6 
 # 0 1 1 2 3 5 8 
 
-# fib <- gen.memoizer()(function(x) if(x <= 1) x else fib(x - 1) + fib(x - 2))
+### memoizer() can apply to a simple recursive function.
+# fib2 <- memoizer(function(x) if(x <= 1) x else fib2(x - 1) + fib2(x - 2))
 
-# > fib(500)
+# > fib2(500)
 # [1] 1.394232e+104
 
 # install.packages("gmp"); library("gmp")
-# > fib2 <- gen.memoizer()(function(x) if(x<=1) as.bigz(x) else fib2(x-1) + fib2(x-2))
-# > fib2(500)
+# > fib3 <- memoizer(function(x) if(x<=1) as.bigz(x) else fib3(x-1) + fib3(x-2))
+# > fib3(500)
 # Big Integer ('bigz') :
-# [1] # 139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125
+# [1] 139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125
 
-### http://d.hatena.ne.jp/einblicker/20110108/1294448477
-### http://d.hatena.ne.jp/einblicker/20110113/1294920315
+## http://d.hatena.ne.jp/einblicker/20110108/1294448477
+## http://d.hatena.ne.jp/einblicker/20110113/1294920315
+
 
 ### language object operater
 symbol.tracker <- function(., n = 1, strict = TRUE) {
