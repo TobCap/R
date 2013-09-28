@@ -356,8 +356,8 @@ compose. <- function(f, g) function(x) f(g(x))
 
 ### invokes interceptor; the idea comes from underscore javascript.
 ### it easy to debug.
-tap <- function(x, fun) {
-  if(missing(fun)) print(x) else print(fun(x))
+tap <- function(x, fun = identity) {
+  print(fun(x))
   x
 }
 # > 1:10 %|% (..%%2==0) %|% tap %|% ..^2
@@ -389,8 +389,8 @@ fix. <- function(g) f <- g(f)
 # fix3 <- function(f) (function(x) f(function(y) x(x)(y)))(function(x) f(function(y) x(x)(y)))
 # fix4 <- function(f) (function(x) function(y) f(x(x))(y))(function(x) function(y) f(x(x))(y))
 
-### g = Y(f), f(g) = g
-### Y g =  g(Y g)
+### g = Y(f), f(g) = g; f = Y(g), g(f) = f
+### Y g = g(Y g)
 ### Y = ƒÉf.(ƒÉx.f (x x)) (ƒÉx.f (x x))
 ### Z = ƒÉf.(ƒÉx.f (ƒÉy. x x y)) (ƒÉx.f (ƒÉy. x x y))
 
