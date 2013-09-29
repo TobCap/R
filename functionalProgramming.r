@@ -565,20 +565,23 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 
 
 ### language object operater
-symbol.tracker <- function(., n = 1, strict = TRUE) {
+## promise.tracker can track promise's original symbol
+promise.tracker <- function(., n = 1, strict = TRUE) {
   # see https://gist.github.com/TobCap/6473028
   if(strict) stopifnot(n <= sys.parent())
   stack.adjust <- 2
-  tmp1 <- quote(substitute(.))
-  for(i in seq_len(n)){
-    tmp1 <- call("substitute", tmp1)
+  
+  make.call1 <- function(x){
+    if(x == 0) return(call("substitute", quote(.)))
+    else call("substitute", make.call1(x - 1))
   }
-  tmp2 <- tmp1
-  for(i in seq_len(n)){
-    tmp2 <- call("eval", tmp2, substitute(parent.frame(k), list(k = i + stack.adjust)))
+  make.call2 <- function(x){
+    if(x == 0) return(make.call1(n))
+    else call("eval", make.call2(x - 1), substitute(parent.frame(k), list(k = x + stack.adjust)))
   }
-  eval(tmp2)
+  eval(make.call2(n))
 }
+# lapply(0:3, function(n) (function(x) (function(y) (function(z) promise.tracker(z, n))(y))(x))(n))
 
 ### convert call to list and vice versa
 call.list.cnv <- function(f.arg){
