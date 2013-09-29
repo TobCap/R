@@ -427,23 +427,19 @@ memoizer <- function(f, envir, reset = FALSE){
   
   .memo <- 
     if(exists(".memo", envir = envir, mode = "environment", inherits = FALSE))
-      get(".memo", envir = envir)
+      get(".memo", envir = envir, inherits = FALSE)
     else
       assign(".memo", new.env(parent = emptyenv()), envir = envir)
   
   if(reset) return(invisible(
-    #rm(list = ls(.memo, all = T), envir = .memo)
-    eapply(.memo, function(x) rm(list = ls(x, all = TRUE), envir = x))
-    ))
+    eapply(.memo, function(x) rm(list = ls(x, all = TRUE), envir = x)) ))
   
   fun.names <- paste0(deparse(f), collapse="")
   if (!exists(fun.names, envir = .memo)) 
     assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
   
   function(...){
-    key <- paste0(c(...), collapse=",")
-    # if (!exists(fun.names, envir = .memo)) 
-      # assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
+    key <- paste0(list(...), collapse=",")
     if(is.null(.memo[[fun.names]][[key]]))
       .memo[[fun.names]][[key]] <- f(...)
     .memo[[fun.names]][[key]]
