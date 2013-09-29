@@ -620,11 +620,11 @@ replace.call <- function(expr, before, after){
 }
 
 replace.multi <- function(expr, befores, after, replace.fun = replace.symbol){
-  out.lang <- expr
-  for(i in seq_along(befores)){
-    out.lang <- replace.fun(out.lang, befores[[i]], after)
+  make.call <- function(x){
+    if(length(x) == 0) return(expr)
+    else replace.fun(make.call(x[-1]), x[[1]], after)
   }
-  out.lang
+  make.call(c(befores)) # need c() if length(befores) == 1
 }
 
 replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE){
