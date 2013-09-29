@@ -597,12 +597,10 @@ as.list.recursive <- function(x) {stopifnot(is.call(x)); call.list.cnv(x)}
 as.call.recursive <- function(x) {stopifnot(is.list(x)); call.list.cnv(x)}
 
 # language replacement
-# see https://gist.github.com/TobCap/6348892 
+# see https://gist.github.com/TobCap/6348892
 replace.symbol <- function(expr, before, after){
-  stopifnot(is.language(expr))
-  before.after.list <- list(after)
-  names(before.after.list)[[1]] <- deparse(before)
-  eval(substitute(substitute(e, before.after.list), list(e = expr)))
+  stopifnot(is.language(expr) && is.symbol(before))
+  eval(substitute(substitute(e, `names<-`(list(after), as.character(before))), list(e = expr)))
 }
 
 replace.call <- function(expr, before, after){
