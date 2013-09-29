@@ -765,6 +765,7 @@ nest.fun2 <- function(f, n){
 # plus <- l.(m, n, f, x, m(f)(n(f)(x)))
 # succ <- l.(n, f, x, f(n(f)(x)))
 # mult <- l.(m, n, f, m(n(f)))
+# exp <- l.(m, n, n(m))
 # toInt <- f.(n, n(f.(n, n + 1))(0))
 # 
 # toInt(plus(zero)(one))
@@ -774,6 +775,30 @@ nest.fun2 <- function(f, n){
 # toInt(plus(num(7))(num(8)))
 # toInt(mult(num(3))(num(5)))
 # num(3) %|>% mult %<|% num(5) %|% toInt
+
+# true <- f.(a, f.(b, a))
+# false <- f.(a, f.(b, b))
+# and <- f.(m, f.(n, m(n)(m)))
+# or <- f.(m, f.(n, m(m)(n)))
+# not1 <- f.(m, f.(a, f.(b, m(b)(a)))) ## this does not work in R
+# not2 <- f.(m, m(f.(a, f.(b, b)))(f.(a, f.(b, a)))) # ok
+# if_ <- f.(m, f.(a, f.(b, m(a)(b))))
+
+# identical(and(true)(true), true) 
+# identical(and(true)(false), false)
+# identical(and(false)(true), false)
+# identical(and(false)(false), false)
+#
+# identical(or(true)(true), true) 
+# identical(or(true)(false), true)
+# identical(or(false)(true), true)
+# identical(or(false)(false), false)
+#
+# identical(not2(false), true, ignore.environment=TRUE)
+# identical(not2(true), false, ignore.environment=TRUE)
+#
+# toInt(if_(true)(one)(two))
+# toInt(if_(false)(one)(two))
 
 # tail call optimization
 # see https://gist.github.com/TobCap/6482462 
