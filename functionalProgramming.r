@@ -413,7 +413,7 @@ fix. <- function(g) f <- g(f)
 # The naming is intented to avoid a conflict with library("memoise")
 memoizer <- function(f, envir, reset = FALSE){
   if(!missing(reset) && !missing(f))
-    stop("if you simply reset, simply type as memoizer(reset = TRUE)")
+    stop("if you simply want to reset, type as memoizer(reset = TRUE)")
   
   if(missing(envir)) {
     e.name <- getOption("storing.env", default = ".GlobalEnv")
