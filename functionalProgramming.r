@@ -745,12 +745,15 @@ nest.fun2 <- function(f, n){
 # > nest.fun(f.(x, 1 + 1/x), 100)(1) == (1+sqrt(5))/2
 # [1] TRUE
 
-### checking arguments using gen.tracer() function.
-# > nest.fun(gen.tracer()(f.(x, 1 + 1/x)), 3)(1)
+### When using nest.fun(), tracer() can check passing arguments.
+# > nest.fun(tracer(f.(x, 1 + 1/x)), 6)(1)
 # 1st call with argument: 1
 # 2nd call with argument: 2
 # 3rd call with argument: 1.5
-# [1] 1.666667
+# 4th call with argument: 1.66666666666667
+# 5th call with argument: 1.6
+# 6th call with argument: 1.625
+# [1] 1.615385
 
 ### http://en.wikipedia.org/wiki/Church_encoding
 ### http://taiju.hatenablog.com/entry/20120529/1338299884
