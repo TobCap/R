@@ -632,8 +632,8 @@ replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE)
   stopifnot(is.language(expr))
   if(can.accept.undefined.var) {
     stopifnot(exists("accept.undefined.var"))
-    before <- accept.undefined.var(before)
-    after <- accept.undefined.var(after)
+    before <- accept.undefined.var(before, parent.frame())
+    after <- accept.undefined.var(after, parent.frame())
   }
   # before is passed as list even though it is a single symbole
   before <- 
@@ -663,11 +663,9 @@ replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE)
   }
   conv(expr)
 }
- 
-accept.undefined.var <- function(.x) {
-  # undefined handling
-  is.defined <- tryCatch(nchar(.x) && TRUE, error = function(e) FALSE)
-  
+
+accept.undefined.var <- function(.x, env) {
+  # access to parent.frame(2)
   expr <- eval.parent(substitute(substitute(.x)))
   lang.fun.names <- c("quote", "expression", "as.name", "as.symbol", "call")
   is.list.vector <- !is.symbol(expr) && (expr[[1]] == quote(c) || expr[[1]] == quote(list))
@@ -675,11 +673,11 @@ accept.undefined.var <- function(.x) {
     paste0("the '", x,"' is an existing language object,so not interpreted as undefined variable"))
  
   force.lang <- function(y){
-    var.name.first <- as.character(y)[[1]]
-    if(var.name.first %in% lang.fun.names[1:2]) y[[2]] # quote or expression
-    else if(var.name.first %in% lang.fun.names[3:5]) eval(y) # as.symbol, as.name or call
-    else if(is.defined && is.character(y)) parse(text = y)[[1]] # character 
-    else if(is.defined && is.language(eval(y))) {w(var.name.first); eval(y)} # assigned language object
+    first.char <- as.character(y)[[1]]
+    if(is.character(y)) parse(text = y)[[1]] # character
+    else if(first.char %in% lang.fun.names[1:2]) y[[2]] # quote or expression
+    else if(first.char %in% lang.fun.names[3:5]) eval(y) # as.symbol, as.name or call
+    else if(is.symbol(y) && exists(first.char, envir = env)) {w(first.char); eval(y)} # assigned language object
     else y # undefined, not language object, or not character object
   }
   
