@@ -811,7 +811,7 @@ tco <- function(f){
     while(TRUE){
       ans <- f() # evaluate
       if (length(ans) == 1 && !is.list(ans)) break
-      e <- list2env(stats:::setNames(ans, arg.names), envir = e) #update values
+      e <- list2env(`names<-`(ans, arg.names), envir = e) #update values
     }
     return(ans)
   }
