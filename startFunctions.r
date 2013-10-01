@@ -197,7 +197,7 @@ rm.all <- function(env = .GlobalEnv) {
 ### assignment
 ## see examples in https://gist.github.com/TobCap/6713338
 ## class is bound when assigning
-assign2 <- function(sym, init.val, check.funs = class, envir = parent.frame()) {
+assign2 <- function(x.char, init.val, check.funs = class, envir = parent.frame()) {
   ## The idea of this function comes from makeActiveBinding's example.
   ## Enter ?makeActiveBinding in R console.
 
@@ -205,18 +205,17 @@ assign2 <- function(sym, init.val, check.funs = class, envir = parent.frame()) {
   if(!all(vapply(checker, is.function, FALSE)))
     stop("check.funs must be function")
 
-  if(is.character(var.sym <- substitute(sym)))
-    var.sym <- as.symbol(var.sym)
-
+  x.sym <- as.symbol(x.char)
+  
   x <- init.val
   checked.x <- lapply(checker, function(f) f(x))
   checked.x1 <- checked.x[[1]] # for speed-up when length(checked.funs) == 1
 
   msg <- paste0(
-    "When assigning, the results of right-side's ",
+    "Right-side's ",
     if(length(checker) == 1) substitute(check.funs)
     else paste0(as.character(as.list(substitute(check.funs))[-1]), collapse = " or "),
-    " are different from existing value.", collapse = "")
+    " is different from existing value.", collapse = "")
 
   out.fun <- function(v) {
     if (!missing(v)){
@@ -228,10 +227,10 @@ assign2 <- function(sym, init.val, check.funs = class, envir = parent.frame()) {
     x
   }
   if(length(checker) == 1) # for speed-up
-  body(out.fun)[[2]][[3]][[2]] <- quote(if (check.funs(v) != checked.x1) stop(msg))
+    body(out.fun)[[2]][[3]][[2]] <- quote(if (check.funs(v) != checked.x1) stop(msg))
 
-  cat(var.sym, "is created!", "\n")
-  invisible(makeActiveBinding(var.sym, out.fun, envir))
+  cat(x.sym, "is created!", "\n")
+  invisible(makeActiveBinding(x.sym, out.fun, envir))
 }
 
 ## assign immutable variable
