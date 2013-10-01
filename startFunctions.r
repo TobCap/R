@@ -247,3 +247,15 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 `%<-!%` <- function(lhs, rhs) {
   assign3(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
+
+## memory inspection:
+## http://stackoverflow.com/questions/10912729/r-object-identity/10913296#10913296
+inspect <- function(x) capture.output(.Internal(inspect(x)))
+address <- function(x) {
+  if(.Platform$r_arch == "x64")
+    substring(capture.output(.Internal(inspect(x)))[[1]],2,19)
+  else if(.Platform$r_arch == "i386")
+    substring(capture.output(.Internal(inspect(x)))[[1]],2,8)
+  else
+    stop("Cannot identify your machine. `.Platfor`$r_arch is not x64 nor i386")
+}
