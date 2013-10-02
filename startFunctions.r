@@ -248,14 +248,28 @@ assign3 <- function(var.char, val, envir = parent.frame()){
   assign3(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
-## memory inspection:
+### memory inspection:
 ## http://stackoverflow.com/questions/10912729/r-object-identity/10913296#10913296
-inspect <- function(x) capture.output(.Internal(inspect(x)))
-address <- function(x) {
-  if(.Platform$r_arch == "x64")
-    substring(capture.output(.Internal(inspect(x)))[[1]],2,19)
-  else if(.Platform$r_arch == "i386")
-    substring(capture.output(.Internal(inspect(x)))[[1]],2,8)
-  else
-    stop("Cannot identify your machine. `.Platfor`$r_arch is not x64 nor i386")
+## http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2010-March/000508.html
+## http://tolstoy.newcastle.edu.au/R/e16/devel/11/11/0263.html
+## dot-dot-dot works well
+inspect <- function(...) .Internal(inspect(...))
+
+address <- function(...){
+  co <- function (...) {
+    # simplify body(capture.output) and substitute `cat` for `print`
+    rval <- NULL
+    file <- textConnection("rval", "w", local = TRUE)
+    sink(file)
+    on.exit({sink(); close(file)})
+    cat(eval(substitute(list(...))[[2]],  parent.frame()))
+    on.exit()
+    sink()
+    close(file)
+    substring(strsplit(rval[[1]], " ")[[1]][[1]], 2)
+  }
+  # capture.output(inspect(...))
+  # It works well seemingly, but after calling this function more than two times,
+  # the result of inspect(x) indicates that NAM is converted from 1 to 2.
+  co(inspect(...))
 }
