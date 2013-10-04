@@ -252,9 +252,13 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 ## http://stackoverflow.com/questions/10912729/r-object-identity/10913296#10913296
 ## http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2010-March/000508.html
 ## http://tolstoy.newcastle.edu.au/R/e16/devel/11/11/0263.html
-## dot-dot-dot works well
-inspect <- function(...) .Internal(inspect(...))
 
+## my examples are in https://gist.github.com/TobCap/6792752
+## A promise is copied so dot-dot-dot is suitable.
+## inspect(arg, depth (recursive display) or NULL, max display items (more than one))  
+## inspect(.GlobalEnv, 3, 30)
+## inspect(.GlobalEnv, NULL, 100) 
+inspect <- function(...) .Internal(inspect(...))
 address <- function(...){
   co <- function (...) {
     # simplify body(capture.output) and substitute `cat` for `print`

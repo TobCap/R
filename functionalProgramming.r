@@ -563,6 +563,13 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## http://d.hatena.ne.jp/einblicker/20110108/1294448477
 ## http://d.hatena.ne.jp/einblicker/20110113/1294920315
 
+## U Combinator 
+## U <- function(f) f(f)
+## fib.u <- function(f) function(n) if(n <= 1) n else f(f)(n - 1)  + f(f)(n - 2)
+## U(fib.u)(10)
+## U(fib.u %>>% memoizer)(100)
+
+
 
 ### language object operater
 ## promise.tracker can track promise's original symbol
