@@ -263,23 +263,21 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 ## A promise is copied so dot-dot-dot is suitable.
 ## inspect(arg, depth (recursive display) or NULL, max display items (more than one))  
 ## inspect(.GlobalEnv, 3, 30)
-## inspect(.GlobalEnv, NULL, 100) 
+## inspect(.GlobalEnv, NULL, NULL) 
 inspect <- function(...) .Internal(inspect(...))
 address <- function(...){
-  co <- function (...) {
+  capture.output.cat <- function (...) {
     # simplify body(capture.output) and substitute `cat` for `print`
     rval <- NULL
     file <- textConnection("rval", "w", local = TRUE)
     sink(file)
     on.exit({sink(); close(file)})
     cat(eval(substitute(list(...))[[2]],  parent.frame()))
-    on.exit()
-    sink()
-    close(file)
+    
     substring(strsplit(rval[[1]], " ")[[1]][[1]], 2)
   }
   # capture.output(inspect(...))
   # It works well seemingly, but after calling this function more than two times,
   # the result of inspect(x) indicates that NAM is converted from 1 to 2.
-  co(inspect(...))
+  capture.output.cat(inspect(...))
 }
