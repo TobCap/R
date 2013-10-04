@@ -9,28 +9,14 @@ f. <- function(..., env = parent.frame()){
   n <- length(d)
   eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
 }
+
 # f. <- function(..., env = parent.frame()){
 #   d <- lapply(substitute(list(...)), identity)[-1]
 #   as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env) 
 # }
-# The above commented code which I made first time is bit slower than the current code.
+# The above commented code that I made first time is bit slower than the current code.
 # See https://gist.github.com/TobCap/6255804 for comparison of cost of creating funciton.
 # See also https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
-
-# arrow operator 
-`%=>%` <- function(lhs, rhs, env = parent.frame()){
-  l <- substitute(lhs)
-  # coerce list() into NULL by as.pairlist
-  if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1])
-  eval(call("function", as.pairlist(tools:::as.alist.call(l)), substitute(rhs)), env)
-}
-
-# {} %=>% {x + 2}
-# x %=>% {x + 1}
-# c(x, y) %=>% {x + y}
-# c(x=1, y) %=>% {x + y}
-# {x; y} %=>% {x + y} 
-# {x=1; y} %=>% {x + y} # not run
 
 # f.(x, x * 2)
 # f.(x, y, x + y)
@@ -48,6 +34,101 @@ f. <- function(..., env = parent.frame()){
 # [1] 3
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
+
+## arrow function
+`%=>%` <- function(lhs, rhs, env = parent.frame()) {
+  expr <- substitute(lhs)
+  if (length(expr) > 1) {
+    arglist.raw <- as.vector(expr, "list")[-1]
+  } else if(expr == quote(`{`)){
+    arglist.raw <- NULL
+  } else {
+    arglist.raw <- list(expr)
+  }
+
+  # short-cut for non-class-defined situation
+  if (!any(c(":", "=") %in% unlist(strsplit(deparse(expr), ""))))
+    return(eval(call("function", 
+      as.pairlist(tools:::as.alist.call(arglist.raw)), substitute(rhs)),env))
+
+  arglist.converted <- Map(function(x, name_) {
+    has.name <- !is.null(name_) && nzchar(name_)
+    if (!has.name) {
+      if (is.call(x) && x[[1]] == quote(`:`)) {
+        ## in case class is defined
+        if (as.character(x[[3]]) %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
+          elem <- `names<-`(list(quote(expr=)), as.character(x[[2]]))
+          class_ <- as.character(x[[3]])
+        } else if (tolower(as.character(x[[3]])) == "any"){
+          elem <- `names<-`(list(quote(expr=)), as.character(x[[2]]))
+          class_ <- NA
+        } else {
+          stop("Not appropriate class designation.")
+        }
+      } else if(is.call(x) && x[[1]] == quote(`=`)) {
+        ## default value is set
+        elem <- `names<-`(list(x[[3]]), as.character(x[[2]]))
+        class_ <- class(eval(x[[3]], env))
+      } else if(is.symbol(x)) {
+        ## only a symbol. It allows any class.
+        elem <- `names<-`(list(quote(expr=)), as.character(x))
+        class_ <- NA
+      } else {
+        stop("An argument must be a symbol.")
+      }
+    } else { ## When has.name, assigning value must be able to be evaluate.
+      elem <- `names<-`(list(x), name_)
+      class_ <- class(eval(x, env))
+    }
+
+    check.fun <-
+      if(is.na(class_)) NULL
+      else call(paste0("is.", class_), as.symbol(names(elem)))
+
+    return(list(elem = elem, check.fun = check.fun))
+  }, unname(arglist.raw), rep_len(as.list(names(arglist.raw)), length(arglist.raw)))
+
+  arglist <- unlist(lapply(arglist.converted, function(x) x$elem), recursive = FALSE)
+
+  null.pos <- function(x) vapply(x, is.null, logical(1))
+  check.funs <- lapply(arglist.converted, function(x) x$check.fun)
+
+  check.call <- (function(x){
+    n <- length(x)
+    if(n == 0) return(quote(TRUE))
+    if(n == 1) return(x[[1]])
+    else call("&&", Recall(x[-n]), x[[n]])
+  })(check.funs[!null.pos(check.funs)])
+
+  expr.add <-
+    call("if",
+     call("!",
+      call("(", check.call)),
+        quote(stop("Some inputs are not appropriate.")))
+
+  body_ <-
+    if (all(as.character(expr.add[1:2]) == c("if", "!(TRUE)"))) substitute(rhs)
+    else as.call(append(as.list(substitute(rhs)), expr.add, 1))
+
+  eval(call("function", as.pairlist(arglist), body_), env)
+}
+
+### first version
+# `%=>%` <- function(lhs, rhs, env = parent.frame()){
+#   l <- substitute(lhs)
+#   # coerce list() into NULL by as.pairlist
+#   if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1])
+#   eval(call("function", as.pairlist(tools:::as.alist.call(l)), substitute(rhs)), env)
+# }
+
+# {} %=>% {x + 2}
+# x %=>% {x + 1}
+# f(x, y) %=>% {x + y}
+# f(x=1, y) %=>% {x + y}
+# {x; y} %=>% {x + y} 
+# {x ; y} %=>% {x + y}
+
+## see other examples in https://gist.github.com/TobCap/6826123
 
 curry <- function (fun, env = parent.frame()) {
   has.quoted <- FALSE
