@@ -179,9 +179,15 @@ cd <- function(dir) {
 }
 
 ### get current order of lapply or vapply
-current.order <- function() sys.call(sys.parent())[[2]][[3]]
+current.order <- function() sys.call(-1)[[2]][[3]]
+current.name <- function() names(eval(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
 # lapply(letters[3:5], function(x) current.order())
-# vapply(letters[3:5], function(x) current.order(), 0) 
+# vapply(letters[3:5], function(x) current.order(), 0)
+# lapply(list(a=1, b="b", c=33),
+#   function(x) {
+#     n <- current.name()
+#     o <- current.order()
+#     list(n, o)})
 
 ###
 rm.variables <- function(env = .GlobalEnv) {
