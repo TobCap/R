@@ -52,26 +52,27 @@ f. <- function(..., env = parent.frame()){
       as.pairlist(tools:::as.alist.call(arglist.raw)), substitute(rhs)),env))
 
   arglist.converted <- Map(function(x, name_) {
+    x.char <- as.character(x)
     has.name <- !is.null(name_) && nzchar(name_)
     if (!has.name) {
       if (is.call(x) && x[[1]] == quote(`:`)) {
         ## in case class is defined
-        if (as.character(x[[3]]) %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
-          elem <- `names<-`(list(quote(expr=)), as.character(x[[2]]))
-          class_ <- as.character(x[[3]])
-        } else if (tolower(as.character(x[[3]])) == "any"){
-          elem <- `names<-`(list(quote(expr=)), as.character(x[[2]]))
+        if (x.char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
+          elem <- `names<-`(list(quote(expr=)), x.char[[2]])
+          class_ <- x.char[[3]]
+        } else if (tolower(x.char[[3]]) == "any"){
+          elem <- `names<-`(list(quote(expr=)), x.char[[2]])
           class_ <- NA
         } else {
-          stop("Not appropriate class designation.")
+          stop("'", paste0(x.char[[3]], "' is not appropriate class designation."))
         }
       } else if(is.call(x) && x[[1]] == quote(`=`)) {
         ## default value is set
-        elem <- `names<-`(list(x[[3]]), as.character(x[[2]]))
+        elem <- `names<-`(list(x[[3]]), x.char[[2]])
         class_ <- class(eval(x[[3]], env))
       } else if(is.symbol(x)) {
         ## only a symbol. It allows any class.
-        elem <- `names<-`(list(quote(expr=)), as.character(x))
+        elem <- `names<-`(list(quote(expr=)), x.char)
         class_ <- NA
       } else {
         stop("An argument must be a symbol.")
@@ -112,8 +113,7 @@ f. <- function(..., env = parent.frame()){
 
   eval(call("function", as.pairlist(arglist), body_), env)
 }
-
-### first version
+### A previous simple version (not have class checking insertion)
 # `%=>%` <- function(lhs, rhs, env = parent.frame()){
 #   l <- substitute(lhs)
 #   # coerce list() into NULL by as.pairlist
@@ -123,11 +123,15 @@ f. <- function(..., env = parent.frame()){
 
 # {} %=>% {x + 2}
 # x %=>% {x + 1}
+# {x; y} %=>% {x + y}
 # f(x, y) %=>% {x + y}
-# f(x=1, y) %=>% {x + y}
-# {x; y} %=>% {x + y} 
-# {x ; y} %=>% {x + y}
+# {x = 1L; y = 2L} %=>% {x + y} 
+# f(x = 1L, y = 2L) %=>% {x + y}
 
+# {x:numeric; y:numeric} %=>% {x + y}
+# f(x:numeric, y:numeric) %=>% {x + y}
+# {x:character; e:environment} %=>% {get(x, envir = e, inherits = FALSE)}
+# f(x:character, e:environment) %=>% {get(x, envir = e, inherits = FALSE)}
 ## see other examples in https://gist.github.com/TobCap/6826123
 
 curry <- function (fun, env = parent.frame()) {
@@ -843,16 +847,16 @@ nest.fun2 <- function(f, n){
 
 ### http://en.wikipedia.org/wiki/Church_encoding
 ### http://taiju.hatenablog.com/entry/20120529/1338299884
-# zero <- l.(f, x, x)
-# one  <- l.(f, x, f(x))
-# two  <- l.(f, x, f(f(x)))
-# num  <- l.(n, f, x, nest.fun(f, n)(x))
+# zero <- l.(f, x, x)                    # f.(f, f.(x, x))
+# one  <- l.(f, x, f(x))                 # f.(f, f.(x, f(x)))
+# two  <- l.(f, x, f(f(x)))              # f.(f, f.(x, f(f(x))))
+# num  <- l.(n, f, x, nest.fun(f, n)(x)) # f.(n, f.(f, f.(x, nest.fun(f, n)(x)))) 
 #
-# plus <- l.(m, n, f, x, m(f)(n(f)(x)))
-# succ <- l.(n, f, x, f(n(f)(x)))
-# mult <- l.(m, n, f, m(n(f)))
-# exp <- l.(m, n, n(m))
-# toInt <- f.(n, n(f.(n, n + 1))(0))
+# plus <- l.(m, n, f, x, m(f)(n(f)(x)))  # f.(m, f.(n, f.(f, f.(x, m(f)(n(f)(x))))))
+# succ <- l.(n, f, x, f(n(f)(x)))        # f.(n, f.(f, f.(x, f(n(f)(x)))))
+# mult <- l.(m, n, f, m(n(f)))           # f.(m, f.(n, f.(f, m(n(f)))))
+# exp  <- l.(m, n, n(m))                 # f.(m, f.(n, n(m)))
+# toInt <- l.(n, n(l.(n, n + 1))(0))     # f.(n, n(f.(n, n + 1))(0))
 # 
 # toInt(plus(zero)(one))
 # toInt(plus(one)(two))
