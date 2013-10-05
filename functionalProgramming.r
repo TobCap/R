@@ -51,55 +51,61 @@ f. <- function(..., env = parent.frame()){
     return(eval(call("function", 
       as.pairlist(tools:::as.alist.call(arglist.raw)), substitute(rhs)),env))
 
-  arglist.converted <- Map(function(x, name_) {
-    x.char <- as.character(x)
-    has.name <- !is.null(name_) && nzchar(name_)
-    if (!has.name) {
-      if (is.call(x) && x[[1]] == quote(`:`)) {
-        ## in case class is defined
-        if (x.char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
-          elem <- `names<-`(list(quote(expr=)), x.char[[2]])
-          class_ <- x.char[[3]]
-        } else if (tolower(x.char[[3]]) == "any"){
-          elem <- `names<-`(list(quote(expr=)), x.char[[2]])
+  arglist.converted <- mapply(
+    function(x, name) {
+      x.char <- as.character(x)
+      has.name <- !is.null(name) && nzchar(name)
+      if (!has.name) {
+        if (is.call(x) && x[[1]] == quote(`:`)) {
+          ## in case class is defined
+          if (x.char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
+            elem <- `names<-`(list(quote(expr=)), x.char[[2]])
+            class_ <- x.char[[3]]
+          } else if (tolower(x.char[[3]]) == "any"){
+            elem <- `names<-`(list(quote(expr=)), x.char[[2]])
+            class_ <- NA
+          } else {
+            stop("'", paste0(x.char[[3]], "' is not appropriate class designation."))
+          }
+        } else if(is.call(x) && x[[1]] == quote(`=`)) {
+          ## default value is set
+          elem <- `names<-`(list(x[[3]]), x.char[[2]])
+          class_ <- class(eval(x[[3]], env))
+        } else if(is.symbol(x)) {
+          ## only a symbol. It allows any class.
+          elem <- `names<-`(list(quote(expr=)), x.char)
           class_ <- NA
         } else {
-          stop("'", paste0(x.char[[3]], "' is not appropriate class designation."))
+          stop("An argument must be a symbol.")
         }
-      } else if(is.call(x) && x[[1]] == quote(`=`)) {
-        ## default value is set
-        elem <- `names<-`(list(x[[3]]), x.char[[2]])
-        class_ <- class(eval(x[[3]], env))
-      } else if(is.symbol(x)) {
-        ## only a symbol. It allows any class.
-        elem <- `names<-`(list(quote(expr=)), x.char)
-        class_ <- NA
-      } else {
-        stop("An argument must be a symbol.")
+      } else { ## When has.name, assigning value must be able to be evaluate.
+        elem <- `names<-`(list(x), name)
+        class_ <- class(eval(x, env))
       }
-    } else { ## When has.name, assigning value must be able to be evaluate.
-      elem <- `names<-`(list(x), name_)
-      class_ <- class(eval(x, env))
-    }
 
-    check.fun <-
-      if(is.na(class_)) NULL
-      else call(paste0("is.", class_), as.symbol(names(elem)))
+      check.fun <-
+        if(is.na(class_)) NULL
+        else call(paste0("is.", class_), as.symbol(names(elem)))
 
-    return(list(elem = elem, check.fun = check.fun))
-  }, unname(arglist.raw), rep_len(as.list(names(arglist.raw)), length(arglist.raw)))
+      return(list(elem = elem, check.fun = check.fun))
+    }, 
+    arglist.raw, 
+    rep_len(as.list(names(arglist.raw)), length(arglist.raw)),
+    SIMPLIFY = FALSE,
+    USE.NAMES = FALSE
+  )
 
   arglist <- unlist(lapply(arglist.converted, function(x) x$elem), recursive = FALSE)
 
-  null.pos <- function(x) vapply(x, is.null, logical(1))
   check.funs <- lapply(arglist.converted, function(x) x$check.fun)
-
+  rm.null.element <- function(x) x[!vapply(x, is.null, logical(1))]
+  
   check.call <- (function(x){
     n <- length(x)
     if(n == 0) return(quote(TRUE))
     if(n == 1) return(x[[1]])
     else call("&&", Recall(x[-n]), x[[n]])
-  })(check.funs[!null.pos(check.funs)])
+  })(rm.null.element(check.funs))
 
   expr.add <-
     call("if",
