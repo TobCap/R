@@ -911,7 +911,7 @@ tco <- function(f){
     environment(f) <- e <- list2env(mget(arg.names), parent = environment(f))
     while(TRUE){
       ans <- f() # evaluate
-      if (length(ans) == 1 && !is.list(ans)) break
+      if (!is.list(ans) || length(ans) != length(arg.names)) break
       e <- list2env(`names<-`(ans, arg.names), envir = e) #update values
     }
     return(ans)
