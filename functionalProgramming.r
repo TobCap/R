@@ -693,7 +693,10 @@ call.list.cnv <- function(f.arg){
 }
 as.list.recursive <- function(x) {stopifnot(is.call(x)); call.list.cnv(x)}
 as.call.recursive <- function(x) {stopifnot(is.list(x)); call.list.cnv(x)}
-
+length.recursive <- function(x) {
+  if(!is.recursive(x)) length(x) 
+  else do.call(sum, lapply(as.list(x), length.recursive))
+}
 # language replacement
 # see https://gist.github.com/TobCap/6348892
 replace.symbol <- function(expr, before, after){
