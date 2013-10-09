@@ -63,6 +63,7 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 
 `%!in%` <- Negate(`%in%`)
 `%??%` <- function(x, y) if(is.null(x)) y else x
+is.nil <- function(x) is.null(x) || length(x) == 0 && is.list(x)
 
 ## matrix operation
 `%^%` <- `%**%` <- function(mat, n, acc = diag(1, dim(mat))){
