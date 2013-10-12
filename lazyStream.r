@@ -1,5 +1,7 @@
 ### infinite sequence
 
+## TODO: going to rewrite them in C or Rccp.
+
 ## For reference:
 # http://d.hatena.ne.jp/syou6162/20080831/1220126789
 # http://d.hatena.ne.jp/tar0_t/20110608/1307531065
@@ -49,7 +51,11 @@ lseq.maker3 <- function(x0, x1, x2, f) x0 %:% lseq.maker3(x1, x2, f(x0, x1, x2),
 lseq.maker. <- function(..., f) ..1 %:% do.call(lseq.maker., c(list(...)[-1], do.call(f, list(...)), f = f))
 # x <- lseq.maker.(0, f = function(x) x + 1)
 # ltake2(10, x)
+#
 # x <- lseq.maker.(0, 1, f = function(x, y) x + y)
+# ltake2(10, x)
+#
+# x <- lseq.maker1(0:1, f = function(x) x[[1]] + x[[2]])
 # ltake2(10, x)
 
 ## a sequence
