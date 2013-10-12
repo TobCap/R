@@ -20,11 +20,11 @@ ltail <- function(x) if(is.null(x$tail)) NULL else x$tail()
 }
 `%!!%` <- function(lseq, n) if (n == 0) lhead(lseq) else ltail(lseq) %!!% (n - 1)
 
-llist <- function(...){
+llist <- function(...) {
   if (is.null(pairlist(...))) NULL
   else ..1 %:% do.call(llist, list(...)[-1])
 }
-as.llist <- function(vec){
+as.llist <- function(vec) {
   do.call(llist, as.list(vec))
 }
 # x <- llist(1, 2)
@@ -80,7 +80,7 @@ ltake <- function(n, x) { # lseq
   else hd %:% ltake(n - 1, ltail(x))
 }
 # short-cut of lforce(ltake(x))
-ltake2 <- function(n, x){ # value
+ltake2 <- function(n, x) { # value
   hd <- lhead(x)
   if (length(hd) > 1) {
     hd <- list(hd)} # for lzip.
@@ -89,7 +89,7 @@ ltake2 <- function(n, x){ # value
   else c(hd, ltake2(n - 1, ltail(x)))
 }
 # tail recursion
-ltake2.tc <- function(n, x, acc = NULL){ # value
+ltake2.tc <- function(n, x, acc = NULL) { # value
   hd <- lhead(x)
   if (length(hd) > 1) {
     hd <- list(hd)} # for lzip.
@@ -110,47 +110,47 @@ lref <- function(n, x) { # value
   else lref(n - 1, ltail(x))
 }
 
-ltakeWhile <- function(FUN, x){ # lseq
+ltakeWhile <- function(FUN, x) { # lseq
   hd <- lhead(x)
   if (!FUN(hd) || is.null(hd)) NULL
   else hd %:% ltakeWhile(FUN, ltail(x))
 }
 # short-cut of lforce(ltakeWhile(FUN, x))
-ltakeWhile2 <- function(FUN, x, acc = NULL){ # value
+ltakeWhile2 <- function(FUN, x, acc = NULL) { # value
   hd <- lhead(x)
   if (!FUN(hd) || is.null(hd)) acc
   else ltakeWhile2(FUN, ltail(x), c(acc, hd))
 }
 
-ldropWhile <- function(FUN, x){ # lseq
+ldropWhile <- function(FUN, x) { # lseq
   hd <- lhead(x)
   if (!FUN(hd) || is.null(hd)) x
   else ldropWhile(FUN, ltail(x))
 }
 
-ldrop <- function(n, x){ # lseq
+ldrop <- function(n, x) { # lseq
   if (n == 0) x
   else ldrop(n - 1, ltail(x))
 }
 
-lfind <- function(FUN, x){ # value
+lfind <- function(FUN, x) { # value
   hd <- lhead(x)
   if (is.null(hd)) NULL
   else if(FUN(hd)) hd
   else lfind(FUN, ltail(x))
 }
 
-llength <- function(x, acc = 0){ # value
+llength <- function(x, acc = 0) { # value
   if (is.null(lhead(x))) acc
   else llength(ltail(x), acc + 1)
 }
 
 lrep.each <- function(x, n) {
-  rep.elem <- function(x, n){
+  rep.elem <- function(x, n) {
     if(n == 0) NULL
     else x %:% rep.elem(x, n - 1)}
-  hd <- lhead(x))
-  if (is.null(hd) NULL
+  hd <- lhead(x)
+  if (is.null(hd)) NULL
   else rep.elem(hd, n) %++% lrep.each(ltail(x), n)
 }
 
@@ -161,8 +161,8 @@ lconcat.each <- function(x, y) {
   else lhead(x) %:% (lhead(y) %:% concat.each(ltail(x), ltail(y)))
 }
 
-lmap <- function(FUN, x){
-  hd <- lhead(x))
+lmap <- function(FUN, x) {
+  hd <- lhead(x)
   if (is.null(hd)) NULL
   else FUN(hd) %:% lmap(FUN, ltail(x))
 }
@@ -170,8 +170,8 @@ lmap <- function(FUN, x){
 lfilter <- function(FUN, x) {
   hd <- lhead(x)
   if (is.null(hd)) NULL
-  else if (FUN(hd)) hd %:% lfilter(FUN, ltail(s))
-  else lfilter(FUN, ltail(s))
+  else if (FUN(hd)) hd %:% lfilter(FUN, ltail(x))
+  else lfilter(FUN, ltail(x))
 }
 
 lzipWith <- function(FUN, lseq1, lseq2) {
@@ -187,13 +187,13 @@ lzipWith. <- function(FUN, ...) {
   Reduce(FUN, hd) %:% do.call(lzipWith., c(FUN, tl))
 }
 
-lzip. <- function(...){
+lzip. <- function(...) {
   lzipWith.(c, ...)
 }
 # ltake2(10, lzipWith("*", lint, lint))
 # ltake2(10, lzip.(liota(0), liota(10), liota(100)))
 
-lall <- function(x){ # value
+lall <- function(x) { # value
   hd <- lhead(x)
   if (is.null(hd)) TRUE
   else if (!isTRUE(hd)) FALSE
@@ -227,15 +227,15 @@ lfib2 <- 0 %:% (1 %:% lzipWith(`+`, lfib2, ltail(lfib2)))
 # http://d.hatena.ne.jp/syou6162/20080831/1220126789
 # http://d.hatena.ne.jp/tar0_t/20110608/1307531065
 
-lprimes1 <- function(s = liota(2)){
+lprimes1 <- function(x = liota(2)) {
   lhead(s) %:% lprimes1(lfilter(function(x) x %% lhead(s) != 0, ltail(s)))
 }
 ## almost the same speed even thought even sequence is omitted.
-lprimes2 <- function(s = 2 %:% liota(3, 2)){
+lprimes2 <- function(s = 2 %:% liota(3, 2)) {
   lhead(s) %:% lprimes2(lfilter(function(x) x %% lhead(s) != 0, ltail(s)))
 }
 ## This is faster than lprimes1() and lprimes2()
-sieve <- function(x){
+sieve <- function(x) {
   hd <- lhead(x)
   hd %:% sieve(lfilter(function(y) y %% hd != 0, ltail(x)))
 }
