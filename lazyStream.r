@@ -62,15 +62,15 @@ lseq.maker. <- function(..., f) ..1 %:% do.call(lseq.maker., c(list(...)[-1], do
 lint <- lseq.maker1(0, function(x) x + 1)
 leven <- lseq.maker1(0, function(x) x + 2)
 lodd <- lseq.maker1(1, function(x) x + 2)
-## not a sequence, a generator (a function).
-liota <- function(start = 0, step = 1) lseq.maker1(start, function(x) x + step)
 
 ## can define generetor by using own name.
 lint2  <- function(x = 0) x %:% lint2(x + 1)
 leven2 <- function(x = 0) x %:% lint2(x + 2)
 lodd2  <- function(x = 0) x %:% lint2(x + 1)
-liota2 <- function(n = Inf, start = 0, step = 1){
-  start %:% (if (n == 0) NULL else liota2(n - 1, start + step, step))}
+
+## generator
+liota <- function(n = Inf, start = 0, step = 1){
+  start %:% (if (n == 0) NULL else liota(n - 1, start + step, step))}
 ## arithmetic sequence generater
 larith <- function(x0, x1) x0 %:% larith(x1, 2 * x1 - x0)
 
@@ -252,8 +252,10 @@ lprimes3 <- 2 %:% sieve(liota(3, 2))
 
 # > ltakeWhile2(function(x) x < 20, lprimes3)
 # [1]  2  3  5  7 11 13 17 19
+#
 # > ltake2(5, ldropWhile(function(x) x <= 2013, lprimes3))
 # [1] 2017 2027 2029 2039 2053
+#
 # > ltakeWhile2(function(x) x < 100, lfib2)
 #  [1]  0  1  1  2  3  5  8 13 21 34 55 89
 
