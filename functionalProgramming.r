@@ -1,5 +1,19 @@
 ### functional operators
 
+## Auxiliary function
+as.formals <- function(xs){
+  ## a faster version of tools:::as.alist.call
+  if (length(xs) == 0) return(NULL)
+  if (is.null(names(xs))) 
+    return(`names<-`(as.pairlist(rep.int(list(quote(expr=)), length(xs))), as.character(xs)))
+  
+  ans <- as.list(xs)
+  idx <- which(names(ans) == "")
+  names(ans)[idx] <- vapply(ans[idx], as.character, "")
+  ans[idx] <- rep.int(list(quote(expr=)), length(idx))
+  as.pairlist(ans)
+}
+
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
   # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...` 
@@ -7,7 +21,7 @@ f. <- function(..., env = parent.frame()){
   # need to be pairlist to return NULL when nothing is passed to `...`.
   
   n <- length(d)
-  eval(call("function", as.pairlist(tools:::as.alist.call(d[-n])), d[[n]]), env)
+  eval(call("function", as.formals(d[-n]), d[[n]]), env)
 }
 
 # f. <- function(..., env = parent.frame()){
@@ -50,7 +64,7 @@ f. <- function(..., env = parent.frame()){
   # short-cut for non-class-defined situation
   if (!any(c(":", "=") %in% unlist(strsplit(deparse(expr), ""))))
     return(eval(call("function", 
-      as.pairlist(tools:::as.alist.call(arglist.raw)), substitute(rhs)),env))
+      as.formals(arglist.raw), substitute(rhs)),env))
 
   arglist.converted <- mapply(
     function(x, name) {
@@ -160,7 +174,7 @@ pa <- function(expr, e = parent.frame()){
     stop("A binding variable must start with underscore and ends with numeric.")
   if(anyDuplicated.default(underscores) > 0)
     stop("Binding variables must be different from each other.")
-  created.formals <- tools:::as.alist.call(underscores[order(underscores)])
+  created.formals <- as.formals(underscores[order(underscores)])
 
   make.body <- function(args_){
     if(length(args_) == 0) return(substitute(expr, parent.env(environment())))
