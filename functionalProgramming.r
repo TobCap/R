@@ -55,7 +55,7 @@ f. <- function(..., env = parent.frame()){
   expr <- substitute(lhs)
   if (length(expr) > 1) {
     arglist.raw <- as.vector(expr, "list")[-1]
-  } else if(expr == quote(`{`)){
+  } else if (expr == quote(`{`)){
     arglist.raw <- NULL
   } else {
     arglist.raw <- list(expr)
@@ -63,8 +63,7 @@ f. <- function(..., env = parent.frame()){
 
   # short-cut for non-class-defined situation
   if (!any(c(":", "=") %in% unlist(strsplit(deparse(expr), ""))))
-    return(eval(call("function", 
-      as.formals(arglist.raw), substitute(rhs)),env))
+    return(eval(call("function", as.formals(arglist.raw), substitute(rhs)), env))
 
   arglist.converted <- mapply(
     function(x, name) {
@@ -82,11 +81,11 @@ f. <- function(..., env = parent.frame()){
           } else {
             stop("'", paste0(x.char[[3]], "' is not appropriate class designation."))
           }
-        } else if(is.call(x) && x[[1]] == quote(`=`)) {
+        } else if (is.call(x) && x[[1]] == quote(`=`)) {
           ## default value is set
           elem <- `names<-`(list(x[[3]]), x.char[[2]])
           class_ <- class(eval(x[[3]], env))
-        } else if(is.symbol(x)) {
+        } else if (is.symbol(x)) {
           ## only a symbol. It allows any class.
           elem <- `names<-`(list(quote(expr=)), x.char)
           class_ <- NA
@@ -99,7 +98,7 @@ f. <- function(..., env = parent.frame()){
       }
 
       check.fun <-
-        if(is.na(class_)) NULL
+        if (is.na(class_)) NULL
         else call(paste0("is.", class_), as.symbol(names(elem)))
 
       return(list(elem = elem, check.fun = check.fun))
@@ -117,8 +116,8 @@ f. <- function(..., env = parent.frame()){
   
   check.call <- (function(x){
     n <- length(x)
-    if(n == 0) return(quote(TRUE))
-    if(n == 1) return(x[[1]])
+    if (n == 0) return(quote(TRUE))
+    if (n == 1) return(x[[1]])
     else call("&&", Recall(x[-n]), x[[n]])
   })(rm.null.element(check.funs))
 
@@ -160,7 +159,7 @@ curry <- function (fun, env = parent.frame()) {
   recursiveCall <- function(len, arg) {
     if (len == 0) return(do.call(fun, arg, quote = has.quoted, envir = env))
     function(x) {
-      if(is.language(x)) has.quoted <<- TRUE
+      if (is.language(x)) has.quoted <<- TRUE
       recursiveCall(len - 1, append(arg, list(x)))}}
   recursiveCall(length(formals(args(fun))), list())
 }
@@ -170,15 +169,15 @@ curry <- function (fun, env = parent.frame()) {
 pa <- function(expr, e = parent.frame()){
   all.vars <- all.names(substitute(expr), functions = FALSE)
   underscores <- all.vars[grep("^\\_$|^\\_[0-9]+$", all.vars)]
-  if(length(underscores) == 0)
+  if (length(underscores) == 0)
     stop("A binding variable must start with underscore and ends with numeric.")
-  if(anyDuplicated.default(underscores) > 0)
+  if (anyDuplicated.default(underscores) > 0)
     stop("Binding variables must be different from each other.")
   created.formals <- as.formals(underscores[order(underscores)])
 
   make.body <- function(args_){
-    if(length(args_) == 0) return(substitute(expr, parent.env(environment())))
-    call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+    if (length(args_) == 0) substitute(expr, parent.env(environment()))
+    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
   }
   eval(make.body(created.formals), e)
 }
@@ -194,8 +193,8 @@ pa <- function(expr, e = parent.frame()){
 cr <- function(f, e = parent.frame()){
    stopifnot(is.function(f) && typeof(f) == "closure")
    make.body <- function(args_){
-     if(length(args_) == 0) return(body(f))
-     call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+     if (length(args_) == 0) body(f)
+     else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
    }
    eval(make.body(formals(args(f))), envir = environment(f), enclos = e)
  }
@@ -246,7 +245,7 @@ cr <- function(f, e = parent.frame()){
 uncurry <- function(fun){ 
   function(...){
     rec <- function(f, dots){
-      if(length(dots) == 0) f
+      if (length(dots) == 0) f
       else rec(f(dots[[1]]), dots[-1])
     }
     rec(fun, list(...))
@@ -290,9 +289,9 @@ flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
 # fun compares vecter elements next to each other
 .compare <- function(fun, vals){
   out.fun <- function(vals){
-    if(length(vals) == 1) TRUE
-    else if(is.na(vals[[1]])) NA
-    else if(!fun(vals[[1]], vals[[2]])) FALSE
+    if (length(vals) == 1) TRUE
+    else if (is.na(vals[[1]])) NA
+    else if (!fun(vals[[1]], vals[[2]])) FALSE
     else out.fun(vals[-1])
   }
   out.fun(vals)
@@ -314,9 +313,9 @@ flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
 # `<=.`(c(1:100,99))
 
 .compare.element <- function(vals, default.val){
-  if(length(vals) == 0) default.val
-  else if(is.na(vals[[1]])) NA
-  else if(!vals[[1]] == default.val) !default.val
+  if (length(vals) == 0) default.val
+  else if (is.na(vals[[1]])) NA
+  else if (!vals[[1]] == default.val) !default.val
   else .compare.element(vals[-1], default.val)
 }
 .all <- function(x) .compare.element(x, TRUE)
@@ -518,26 +517,26 @@ fix. <- function(g) f <- g(f)
 # options(storing.env = "your_arbitrary_env_name").
 # The naming is intented to avoid a conflict with library("memoise")
 memoizer <- function(f, envir, reset = FALSE){
-  if(!missing(reset) && !missing(f))
+  if (!missing(reset) && !missing(f))
     stop("if you simply want to reset, type as memoizer(reset = TRUE)")
   
-  if(missing(envir)) {
+  if (missing(envir)) {
     e.name <- getOption("storing.env", default = ".GlobalEnv")
     envir <- 
-      if(e.name == ".GlobalEnv") .GlobalEnv
-      else if(e.name %in% search()) as.environment(e.name)
+      if (e.name == ".GlobalEnv") .GlobalEnv
+      else if (e.name %in% search()) as.environment(e.name)
       else attach(NULL, name = e.name)
   } else {
     stopifnot(is.environment(envir))
   }
   
   .memo <- 
-    if(exists(".memo", envir = envir, mode = "environment", inherits = FALSE))
+    if (exists(".memo", envir = envir, mode = "environment", inherits = FALSE))
       get(".memo", envir = envir, inherits = FALSE)
     else
       assign(".memo", new.env(parent = emptyenv()), envir = envir)
   
-  if(reset) return(invisible(
+  if (reset) return(invisible(
     eapply(.memo, function(x) rm(list = ls(x, all = TRUE), envir = x)) ))
   
   fun.names <- paste0(deparse(f), collapse="")
@@ -546,7 +545,7 @@ memoizer <- function(f, envir, reset = FALSE){
   
   function(...){
     key <- paste0(list(...), collapse=",")
-    if(is.null(.memo[[fun.names]][[key]]))
+    if (is.null(.memo[[fun.names]][[key]]))
       .memo[[fun.names]][[key]] <- f(...)
     .memo[[fun.names]][[key]]
   }
@@ -566,7 +565,7 @@ tracer <- function(f) {
   function(...){
     key <- paste(list(...), collapse=",")
     num <<- num + 1 # key‚æ‚è‰º‚Å‚È‚¢‚Æ‚¢‚¯‚È‚¢ •›ì—p‚Ì•¾ŠQ
-    cat(num, if(num <= 3) switch(num, "st", "nd", "rd") else "th", " call with argument: ", key, "\n", sep = "")
+    cat(num, if (num <= 3) switch(num, "st", "nd", "rd") else "th", " call with argument: ", key, "\n", sep = "")
     f(...)
   }
 }
@@ -681,15 +680,15 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## promise.tracker can track promise's original symbol
 promise.tracker <- function(., n = 1, strict = TRUE) {
   # see https://gist.github.com/TobCap/6473028
-  if(strict) stopifnot(n <= sys.parent())
+  if (strict) stopifnot(n <= sys.parent())
   stack.adjust <- 2
   
   make.call1 <- function(x){
-    if(x == 0) return(call("substitute", quote(.)))
+    if (x == 0) return(call("substitute", quote(.)))
     else call("substitute", make.call1(x - 1))
   }
   make.call2 <- function(x){
-    if(x == 0) return(make.call1(n))
+    if (x == 0) return(make.call1(n))
     else call("eval", make.call2(x - 1), substitute(parent.frame(k), list(k = x + stack.adjust)))
   }
   eval(make.call2(n))
@@ -709,7 +708,7 @@ call.list.cnv <- function(f.arg){
 as.list.recursive <- function(x) {stopifnot(is.call(x)); call.list.cnv(x)}
 as.call.recursive <- function(x) {stopifnot(is.list(x)); call.list.cnv(x)}
 length.recursive <- function(x) {
-  if(!is.recursive(x)) length(x) 
+  if (!is.recursive(x)) length(x) 
   else do.call(sum, lapply(as.list(x), length.recursive))
 }
 # language replacement
@@ -722,15 +721,15 @@ replace.symbol <- function(expr, before, after){
 replace.call <- function(expr, before, after){
   stopifnot(is.language(expr))
   conv <- function(x) {
-    if(is.pairlist(x) && !is.null(x)) {
-      if(is.symbol(before)){ # for formal parameter
+    if (is.pairlist(x) && !is.null(x)) {
+      if (is.symbol(before)){ # for formal parameter
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
       as.pairlist(lapply(x, conv))
     }
-    else if(identical(x, before)) after
-    else if(length(x) == 1 || is.null(x)) x
+    else if (identical(x, before)) after
+    else if (length(x) == 1 || is.null(x)) x
     else as.call(lapply(x, conv))
   }
   conv(expr)
@@ -738,7 +737,7 @@ replace.call <- function(expr, before, after){
 
 replace.multi <- function(expr, befores, after, replace.fun = replace.symbol){
   make.call <- function(x){
-    if(length(x) == 0) return(expr)
+    if (length(x) == 0) return(expr)
     else replace.fun(make.call(x[-1]), x[[1]], after)
   }
   make.call(c(befores)) # need c() if length(befores) == 1
@@ -746,7 +745,7 @@ replace.multi <- function(expr, befores, after, replace.fun = replace.symbol){
 
 replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE){
   stopifnot(is.language(expr))
-  if(can.accept.undefined.var) {
+  if (can.accept.undefined.var) {
     stopifnot(exists("accept.undefined.var"))
     before <- accept.undefined.var(before, parent.frame())
     after <- accept.undefined.var(after, parent.frame())
@@ -759,22 +758,22 @@ replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE)
   after <- if (is.expression(after)) as.list(after) else after
   
   matched <- 
-    if(is.function(before)) before 
+    if (is.function(before)) before 
     else function(m) any(vapply(before, identical, logical(1), m))
     
   conv <- function(x) {
-    if(is.pairlist(x) && !is.null(x)) {
-      if(is.function(before)){
+    if (is.pairlist(x) && !is.null(x)) {
+      if (is.function(before)){
         ind <- match(TRUE, sapply(lapply(names(x), as.name), before))
         names(x)[ind] <- as.character(after)
-      } else if(is.symbol(before[[1]])){       
+      } else if (is.symbol(before[[1]])){       
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
       as.pairlist(lapply(x, conv))
     }
-    else if(matched(x)) after
-    else if(length(x) == 1 || is.null(x)) x
+    else if (matched(x)) after
+    else if (length(x) == 1 || is.null(x)) x
     else as.call(lapply(x, conv))
   }
   conv(expr)
@@ -790,14 +789,14 @@ accept.undefined.var <- function(.x, env) {
  
   force.lang <- function(y){
     first.char <- as.character(y)[[1]]
-    if(is.character(y)) parse(text = y)[[1]] # character
-    else if(first.char %in% lang.fun.names[1:2]) y[[2]] # quote or expression
-    else if(first.char %in% lang.fun.names[3:5]) eval(y) # as.symbol, as.name or call
-    else if(is.symbol(y) && exists(first.char, envir = env)) {w(first.char); eval(y)} # assigned language object
+    if (is.character(y)) parse(text = y)[[1]] # character
+    else if (first.char %in% lang.fun.names[1:2]) y[[2]] # quote or expression
+    else if (first.char %in% lang.fun.names[3:5]) eval(y) # as.symbol, as.name or call
+    else if (is.symbol(y) && exists(first.char, envir = env)) {w(first.char); eval(y)} # assigned language object
     else y # undefined, not language object, or not character object
   }
   
-  if(is.list.vector) lapply(as.list(expr)[-1], force.lang)
+  if (is.list.vector) lapply(as.list(expr)[-1], force.lang)
   else force.lang(expr)
 }
 
@@ -916,7 +915,7 @@ nest.fun2 <- function(f, n){
 
 # tail call optimization
 # see https://gist.github.com/TobCap/6482462 
-tco <- function(f){
+tco <- function(f) {
   # f is copied object; the original f is not changed.
   f.orig <- substitute(f) 
   body(f) <- replace.multi(body(f), c(quote(Recall), f.orig), quote(list)) 
@@ -937,7 +936,7 @@ tco <- function(f){
 }
 
 sum.rec <- function(n, acc = 0){
-  if(n == 0) acc
+  if (n == 0) acc
   else sum.rec(n - 1, acc + n)
 }
 # > sum.rec(10)
@@ -970,10 +969,10 @@ lang2char <- function(expr, type = c("rexp", "sexp")){
     coll = " ",
     print.out = function(first, rest) paste0("(", first, " ", rest, ")")) 
     
-  . <- if(type == "rexp") r else s
+  . <- if (type == "rexp") r else s
   
   .$rst <- function(k) paste0(
-    lapply(k, function(x) {if(length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
+    lapply(k, function(x) {if (length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
   
   as.char <- function(k) .$print.out(first = .$fst(k), rest = .$rst(k[-1]))
   
