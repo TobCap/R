@@ -35,8 +35,9 @@ f. <- function(..., env = parent.frame()){
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-## arrow function
-`%=>%` <- function(lhs, rhs, env = parent.frame()) {
+## arrow function.
+## %=>% is reserved for monad's bind operator.
+`%->%` <- function(lhs, rhs, env = parent.frame()) {
   expr <- substitute(lhs)
   if (length(expr) > 1) {
     arglist.raw <- as.vector(expr, "list")[-1]
@@ -120,24 +121,24 @@ f. <- function(..., env = parent.frame()){
   eval(call("function", as.pairlist(arglist), body_), env)
 }
 ### A previous simple version (not have class checking insertion)
-# `%=>%` <- function(lhs, rhs, env = parent.frame()){
+# `%->%` <- function(lhs, rhs, env = parent.frame()){
 #   l <- substitute(lhs)
 #   # coerce list() into NULL by as.pairlist
 #   if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1])
 #   eval(call("function", as.pairlist(tools:::as.alist.call(l)), substitute(rhs)), env)
 # }
 
-# {} %=>% {x + 2}
-# x %=>% {x + 1}
-# {x; y} %=>% {x + y}
-# f(x, y) %=>% {x + y}
-# {x = 1L; y = 2L} %=>% {x + y} 
-# f(x = 1L, y = 2L) %=>% {x + y}
+# {} %->% {x + 2}
+# x %->% {x + 1}
+# {x; y} %->% {x + y}
+# f(x, y) %->% {x + y}
+# {x = 1L; y = 2L} %->% {x + y} 
+# f(x = 1L, y = 2L) %->% {x + y}
 
-# {x:numeric; y:numeric} %=>% {x + y}
-# f(x:numeric, y:numeric) %=>% {x + y}
-# {x:character; e:environment} %=>% {get(x, envir = e, inherits = FALSE)}
-# f(x:character, e:environment) %=>% {get(x, envir = e, inherits = FALSE)}
+# {x:numeric; y:numeric} %->% {x + y}
+# f(x:numeric, y:numeric) %->% {x + y}
+# {x:character; e:environment} %->% {get(x, envir = e, inherits = FALSE)}
+# f(x:character, e:environment) %->% {get(x, envir = e, inherits = FALSE)}
 ## see other examples in https://gist.github.com/TobCap/6826123
 
 curry <- function (fun, env = parent.frame()) {
@@ -171,7 +172,7 @@ pa <- function(expr, e = parent.frame()){
 # f2 <- pa(D(`_`, "x")); f2(quote(x^4))
 # f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
 # 
-# g <- function(x, y, z, w) 1000*x+100*y+10*z+1*w
+# g <- function(x, y, z, w) 1000 *x + 100*y + 10*z + 1*w
 # f3 <- pa(g(1, `_1`, 7, `_2`)); f3(3)(9)
 # f4 <- pa(g(1, `_2`, 7, `_1`)); f4(3)(9)
 
