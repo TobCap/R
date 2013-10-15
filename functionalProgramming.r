@@ -1,18 +1,20 @@
 ### functional operators
 
 ## Auxiliary function
-as.formals <- function(xs){
+as.formals <- function(x, value = list(quote(expr=))){
   ## a faster version of tools:::as.alist.call
-  if (length(xs) == 0) return(NULL)
-  if (is.null(names(xs))) 
-    return(`names<-`(as.pairlist(rep.int(list(quote(expr=)), length(xs))), as.character(xs)))
+  if (length(x) == 0)
+    return(NULL)
+  if (is.null(names(x))) 
+    return(`names<-`(as.pairlist(rep_len(value, length(x))), as.character(x)))
   
-  ans <- as.list(xs)
+  ans <- as.list(x)
   idx <- which(names(ans) == "")
   names(ans)[idx] <- vapply(ans[idx], as.character, "")
-  ans[idx] <- rep.int(list(quote(expr=)), length(idx))
+  ans[idx] <- rep_len(value, length(idx))
   as.pairlist(ans)
 }
+
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
@@ -49,13 +51,13 @@ f. <- function(..., env = parent.frame()){
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-## arrow function.
+## Arrow function.
 ## %=>% is reserved for monad's bind operator.
 `%->%` <- function(lhs, rhs, env = parent.frame()) {
   expr <- substitute(lhs)
   if (length(expr) > 1) {
     arglist.raw <- as.vector(expr, "list")[-1]
-  } else if (expr == quote(`{`)){
+  } else if (length(expr) == 0 || expr == quote(`{`)){
     arglist.raw <- NULL
   } else {
     arglist.raw <- list(expr)
@@ -73,27 +75,27 @@ f. <- function(..., env = parent.frame()){
         if (is.call(x) && x[[1]] == quote(`:`)) {
           ## in case class is defined
           if (x.char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
-            elem <- `names<-`(list(quote(expr=)), x.char[[2]])
+            elem <- as.formals(x.char[[2]])
             class_ <- x.char[[3]]
           } else if (tolower(x.char[[3]]) == "any"){
-            elem <- `names<-`(list(quote(expr=)), x.char[[2]])
+            elem <- as.formals(x.char[[2]])
             class_ <- NA
           } else {
             stop("'", paste0(x.char[[3]], "' is not appropriate class designation."))
           }
         } else if (is.call(x) && x[[1]] == quote(`=`)) {
           ## default value is set
-          elem <- `names<-`(list(x[[3]]), x.char[[2]])
+          elem <- as.formals(x.char[[2]], list(x[[3]]))
           class_ <- class(eval(x[[3]], env))
         } else if (is.symbol(x)) {
           ## only a symbol. It allows any class.
-          elem <- `names<-`(list(quote(expr=)), x.char)
+          elem <- as.formals(x.char)
           class_ <- NA
         } else {
           stop("An argument must be a symbol.")
         }
       } else { ## When has.name, assigning value must be able to be evaluate.
-        elem <- `names<-`(list(x), name)
+        elem <- as.formals(name, list(x))
         class_ <- class(eval(x, env))
       }
 
@@ -133,7 +135,7 @@ f. <- function(..., env = parent.frame()){
 
   eval(call("function", as.pairlist(arglist), body_), env)
 }
-### A previous simple version (not have class checking insertion)
+### The previous simple version (not have class checking insertion) was:
 # `%->%` <- function(lhs, rhs, env = parent.frame()){
 #   l <- substitute(lhs)
 #   # coerce list() into NULL by as.pairlist
@@ -144,15 +146,10 @@ f. <- function(..., env = parent.frame()){
 # {} %->% {x + 2}
 # x %->% {x + 1}
 # {x; y} %->% {x + y}
-# f(x, y) %->% {x + y}
 # {x = 1L; y = 2L} %->% {x + y} 
-# f(x = 1L, y = 2L) %->% {x + y}
-
 # {x:numeric; y:numeric} %->% {x + y}
-# f(x:numeric, y:numeric) %->% {x + y}
 # {x:character; e:environment} %->% {get(x, envir = e, inherits = FALSE)}
-# f(x:character, e:environment) %->% {get(x, envir = e, inherits = FALSE)}
-## see other examples in https://gist.github.com/TobCap/6826123
+## see more examples in https://gist.github.com/TobCap/6826123
 
 curry <- function (fun, env = parent.frame()) {
   has.quoted <- FALSE
@@ -185,19 +182,19 @@ pa <- function(expr, e = parent.frame()){
 # f2 <- pa(D(`_`, "x")); f2(quote(x^4))
 # f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
 # 
-# g <- function(x, y, z, w) 1000 *x + 100*y + 10*z + 1*w
-# f3 <- pa(g(1, `_1`, 7, `_2`)); f3(3)(9)
-# f4 <- pa(g(1, `_2`, 7, `_1`)); f4(3)(9)
+# g <- function(x, y, z, w) 1000*x + 100*y + 10*z + 1*w
+# f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
+# f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
 
 # only closure is acceptable
 cr <- function(f, e = parent.frame()){
-   stopifnot(is.function(f) && typeof(f) == "closure")
-   make.body <- function(args_){
-     if (length(args_) == 0) body(f)
-     else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
-   }
-   eval(make.body(formals(args(f))), envir = environment(f), enclos = e)
- }
+  stopifnot(is.function(f) && typeof(f) == "closure")
+  make.body <- function(args_){
+    if (length(args_) == 0) body(f)
+    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+  }
+  eval(make.body(formals(args(f))), envir = environment(f), enclos = e)
+}
 
 # h1 <- cr(rnorm); h1(10)(100)(1)
 # h2 <- cr(rnorm)(10)(100); h2(1)
