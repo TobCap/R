@@ -57,12 +57,12 @@ f. <- function(..., env = parent.frame()){
   expr <- substitute(lhs)
   if (length(expr) > 1) {
     arglist.raw <- as.vector(expr, "list")[-1]
-  } else if (length(expr) == 0 || expr == quote(`{`)){
-    arglist.raw <- NULL
-  } else {
+  } else if (length(expr) == 1 && expr != quote(`{`)) {
     arglist.raw <- list(expr)
+  } else {
+    arglist.raw <- NULL
   }
-
+  
   # short-cut for non-class-defined situation
   if (!any(c(":", "=") %in% unlist(strsplit(deparse(expr), ""))))
     return(eval(call("function", as.formals(arglist.raw), substitute(rhs)), env))
@@ -103,7 +103,7 @@ f. <- function(..., env = parent.frame()){
         if (is.na(class_)) NULL
         else call(paste0("is.", class_), as.symbol(names(elem)))
 
-      return(list(elem = elem, check.fun = check.fun))
+      list(elem = elem, check.fun = check.fun)
     }, 
     arglist.raw, 
     rep_len(as.list(names(arglist.raw)), length(arglist.raw)),
@@ -118,8 +118,8 @@ f. <- function(..., env = parent.frame()){
   
   check.call <- (function(x){
     n <- length(x)
-    if (n == 0) return(quote(TRUE))
-    if (n == 1) return(x[[1]])
+    if (n == 0) quote(TRUE)
+    if (n == 1) x[[1]]
     else call("&&", Recall(x[-n]), x[[n]])
   })(rm.null.element(check.funs))
 
@@ -154,8 +154,8 @@ f. <- function(..., env = parent.frame()){
 curry <- function (fun, env = parent.frame()) {
   has.quoted <- FALSE
   recursiveCall <- function(len, arg) {
-    if (len == 0) return(do.call(fun, arg, quote = has.quoted, envir = env))
-    function(x) {
+    if (len == 0) do.call(fun, arg, quote = has.quoted, envir = env)
+    else function(x) {
       if (is.language(x)) has.quoted <<- TRUE
       recursiveCall(len - 1, append(arg, list(x)))}}
   recursiveCall(length(formals(args(fun))), list())
@@ -329,17 +329,17 @@ zip. <- function(..., FUN = list){
 }
 
 # zip2 <- function(x, y, FUN = list){
-#   if(length(x) == 0 || length(y) == 0) return(NULL)
+#   if(length(x) == 0 || length(y) == 0) NULL
 #   else append(list(FUN(x[[1]], y[[1]])), zip2(x[-1], y[-1], FUN = FUN))
 # }
 # zip3 <- function(x, y, z, FUN = list){
-#   if(length(x) == 0 || length(y) == 0 || length(z) == 0) return(NULL)
+#   if(length(x) == 0 || length(y) == 0 || length(z) == 0) NULL
 #   else append(list(FUN(x[[1]], y[[1]]), z[[1]]), zip2(x[-1], y[-1], z[-1], FUN = FUN))
 # }
 # zip. <- function(... , FUN = list) {
 #   dots <- list(...)
 #   elem.len <- min(vapply(dots, length, 0))
-#   if(elem.len == 0) return(NULL)
+#   if(elem.len == 0) NULL
 #   else append(
 #     list(do.call(FUN, lapply(dots, `[[`, 1))),
 #     do.call(zip., c(lapply(dots, `[`, -1), FUN = FUN)))
@@ -562,7 +562,8 @@ tracer <- function(f) {
   function(...){
     key <- paste(list(...), collapse=",")
     num <<- num + 1 # key‚æ‚è‰º‚Å‚È‚¢‚Æ‚¢‚¯‚È‚¢ •›ì—p‚Ì•¾ŠQ
-    cat(num, if (num <= 3) switch(num, "st", "nd", "rd") else "th", " call with argument: ", key, "\n", sep = "")
+    suffix <- if (num <= 3) switch(num, "st", "nd", "rd") else "th"
+    cat(num, suffix, " call with argument: ", key, "\n", sep = "")
     f(...)
   }
 }
@@ -681,11 +682,11 @@ promise.tracker <- function(., n = 1, strict = TRUE) {
   stack.adjust <- 2
   
   make.call1 <- function(x){
-    if (x == 0) return(call("substitute", quote(.)))
+    if (x == 0) call("substitute", quote(.))
     else call("substitute", make.call1(x - 1))
   }
   make.call2 <- function(x){
-    if (x == 0) return(make.call1(n))
+    if (x == 0) make.call1(n)
     else call("eval", make.call2(x - 1), substitute(parent.frame(k), list(k = x + stack.adjust)))
   }
   eval(make.call2(n))
@@ -698,7 +699,8 @@ call.list.cnv <- function(f.arg){
   cnv <- function(x){
     if (length(x) == 1) x
     else if (is.pairlist(x)) as.pairlist(lapply(x, cnv))
-    else if (arg.is.lang) lapply(x, cnv) else as.call(lapply(x, cnv))
+    else if (arg.is.lang) lapply(x, cnv)
+    else as.call(lapply(x, cnv))
   }
   cnv(f.arg)
 }
@@ -708,6 +710,7 @@ length.recursive <- function(x) {
   if (!is.recursive(x)) length(x) 
   else do.call(sum, lapply(as.list(x), length.recursive))
 }
+
 # language replacement
 # see https://gist.github.com/TobCap/6348892
 replace.symbol <- function(expr, before, after){
@@ -734,7 +737,7 @@ replace.call <- function(expr, before, after){
 
 replace.multi <- function(expr, befores, after, replace.fun = replace.symbol){
   make.call <- function(x){
-    if (length(x) == 0) return(expr)
+    if (length(x) == 0) expr
     else replace.fun(make.call(x[-1]), x[[1]], after)
   }
   make.call(c(befores)) # need c() if length(befores) == 1
@@ -761,7 +764,7 @@ replace.lang <- function (expr, before, after, can.accept.undefined.var = FALSE)
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
       if (is.function(before)){
-        ind <- match(TRUE, sapply(lapply(names(x), as.name), before))
+        ind <- match(TRUE, vapply(lapply(names(x), as.symbol), before, logical(1)))
         names(x)[ind] <- as.character(after)
       } else if (is.symbol(before[[1]])){       
         ind <- match(as.character(before), names(x))
@@ -814,20 +817,20 @@ accept.undefined.var <- function(.x, env) {
 
 # arguments need to be quoted
 nest.formula <- function(expr, variable, num){
-  if (num == 1) return(expr)
+  if (num == 1) expr
   else replace.call(nest.formula(expr, variable, num - 1), variable, expr)
 }
-# > nest.formula(quote((1+x)^2), quote(x), 3)
+# > nest.formula(quote((1 + x)^2), quote(x), 3)
 # (1 + (1 + (1 + x)^2)^2)^2
-# > nest.formula(quote((1+x)^2), quote(1+x), 3)
+# > nest.formula(quote((1 + x)^2), quote(1 + x), 3)
 # (((1 + x)^2)^2)^2
-# > eval(nest.formula(quote(1+1/x), quote(x), 40), list(x = 1)) == (1+sqrt(5))/2
+# > eval(nest.formula(quote(1 + 1 / x), quote(x), 40), list(x = 1)) == (1 + sqrt(5))/2
 # [1] TRUE
 
 ### tail recursive
 nest.fun <- function(f, n, acc.fun = identity){
   # compose. is already defined above.
-  if (n == 0) return(acc.fun)
+  if (n == 0) acc.fun
   else if (n %% 2 == 0) nest.fun(compose.(f, f), n / 2, acc.fun)
   else nest.fun(f, n - 1, compose.(f, acc.fun))
 }
@@ -925,7 +928,7 @@ tco <- function(f) {
       if (!is.list(ans) || length(ans) != length(arg.names)) break
       e <- list2env(`names<-`(ans, arg.names), envir = e) #update values
     }
-    return(ans)
+    ans
   }
   formals(out.fun) <- formals(f)
   formals(f) <- NULL # makes "f" find variables in "e".
