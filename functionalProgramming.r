@@ -64,7 +64,7 @@ f. <- function(..., env = parent.frame()){
   }
   
   # short-cut for non-class-defined situation
-  if (!any(c(":", "=") %in% unlist(strsplit(deparse(expr), ""))))
+  if (!any(c(":", "=") %in% all.names(expr)))
     return(eval(call("function", as.formals(arglist.raw), substitute(rhs)), env))
 
   arglist.converted <- mapply(
@@ -119,7 +119,7 @@ f. <- function(..., env = parent.frame()){
   check.call <- (function(x){
     n <- length(x)
     if (n == 0) quote(TRUE)
-    if (n == 1) x[[1]]
+    else if (n == 1) x[[1]]
     else call("&&", Recall(x[-n]), x[[n]])
   })(rm.null.element(check.funs))
 
