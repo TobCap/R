@@ -141,8 +141,10 @@ apply.mat <- function(X, MARGIN, FUN, ...) {
 }
 
 # m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste0("x", 1:3)))
-# apply(m, 1, cumsum) ## dropped
-# apply.mat(m, 1, cumsum) # matrix layout
+# apply(m, 1, sum) # vectored
+# apply.mat(m, 1, sum) # keep matrix
+# apply(m, 1, cumsum) # transposed
+# apply.mat(m, 1, cumsum) # keep layout
 #
 # m2 <- matrix(0, 1e3, 1e3)
 # > microbenchmark(apply=apply(m2, 1, sum), apply.mat = apply.mat(m2, 1, sum), rowSums=rowSums(m2))
@@ -177,7 +179,7 @@ cd <- function(dir) {
 
 ### get current order of lapply or vapply
 current.order <- function() sys.call(-1)[[2]][[3]]
-current.name <- function() names(eval(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
+current.name <- function() names(eval.parent(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
 # lapply(letters[3:5], function(x) current.order())
 # vapply(letters[3:5], function(x) current.order(), 0)
 # lapply(list(a=1, b="b", c=33),
