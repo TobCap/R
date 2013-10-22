@@ -126,25 +126,21 @@ list2 <- function(..., env = parent.frame()){
   lapply(args.orig, simplify)
 }
 
-## 
-apply.mat <- function(X, MARGIN, FUN, ...){
-  if(!(MARGIN == 1 || MARGIN == 2)) stop("MARGIN must be 1 or 2.")
-  if(!is.matrix(X)) stop("X must be matrix")
+## The answer keeps as matrix.
+apply.mat <- function(X, MARGIN, FUN, ...) {
+  if (!(MARGIN == 1 || MARGIN == 2)) stop("MARGIN must be 1 or 2.")
+  if (!is.matrix(X)) stop("X must be matrix")
+  
+  if (MARGIN == 1) {
+    ans <- do.call(rbind, lapply(seq_len(dim(X)[[1]]), function(z) FUN(X[z,], ...)))
+    `dimnames<-`(ans, list(dimnames(X)[[1]], `if`(ncol(ans) == ncol(X), dimnames(X)[[2]], NULL)))
+  } else {
+    ans <- do.call(cbind, lapply(seq_len(dim(X)[[2]]), function(z) FUN(X[,z], ...)))
+    `dimnames<-`(ans, list(`if`(nrow(ans) == nrow(X), dimnames(X)[[1]], NULL), dimnames(X)[[2]]))
+  }
+}
 
-  if(MARGIN == 1){
-    ans <- do.call(rbind, lapply(seq_len(dim(X)[[MARGIN]]), function(z) FUN(X[z,], ...)))
-     `attributes<-`(ans, list(dim = dim(ans), dimnames = list(dimnames(X)[[1]], `if`(ncol(ans) == ncol(X), dimnames(X)[[2]],
- NULL))))
-   } else {
-     ans <- do.call(cbind, lapply(seq_len(dim(X)[[MARGIN]]), function(z) FUN(X[,z], ...)))
-     `attributes<-`(ans, list(dim = dim(ans), dimnames = list(`if`(nrow(ans) == nrow(X), dimnames(X)[[1]], NULL),
- dimnames(X)[[2]])))
-   }
- }
-
-# 'attributes<-' is faster than structure because of less copies
-
-# m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste("x", 1:3, sep="")))
+# m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste0("x", 1:3)))
 # apply(m, 1, cumsum) ## dropped
 # apply.mat(m, 1, cumsum) # matrix layout
 #
