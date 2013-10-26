@@ -6,6 +6,7 @@ local({
   r["CRAN"] <- "http://cran.ism.ac.jp/"
   #r["R-Forge"] <- "http://r-forge.r-project.org/"
   options(repos = r)
+  enableJIT(3)
 })
 
 options(stringsAsFactors = FALSE)
