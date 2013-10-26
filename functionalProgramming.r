@@ -15,7 +15,6 @@ as.formals <- function(x, value = list(quote(expr=))){
   as.pairlist(ans)
 }
 
-
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
   # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...` 
@@ -255,14 +254,14 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
-  args.orig <- formals(args(match.fun(.fun)))
-  stopifnot(1 < r && l < length(args.orig) && l < r)
-  .fun.name <- as.character(substitute(.fun))
+flip <- function(fun, l = 1, r = 2, env = parent.frame()){
+  args.orig <- formals(args(match.fun(fun)))
+  stopifnot(1 < r, l < length(args.orig), l < r)
+  fun.name <- as.character(substitute(fun))
   out.fun <- function() {
-    args. <- as.pairlist(lapply(match.call(), force)[-1])
-    args.[c(r, l)] <- args.[c(l, r)]
-    do.call(.fun.name, args., envir = env)
+    args_ <- as.vector(match.call(), "list")[-1]
+    args_[c(r, l)] <- args_[c(l, r)]
+    do.call(fun.name, args_, envir = env)
   }
   formals(out.fun) <- args.orig
   out.fun
@@ -278,9 +277,10 @@ flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
-# > Dx <- curry(flip(D))("x")
+# > Dx <- curry(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
+
 
 ###
 # fun compares vecter elements next to each other
