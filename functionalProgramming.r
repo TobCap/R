@@ -187,7 +187,7 @@ pa <- function(expr, e = parent.frame()){
 
 # only closure is acceptable
 cr <- function(f, e = parent.frame()){
-  stopifnot(is.function(f) && typeof(f) == "closure")
+  stopifnot(is.function(f), typeof(f) == "closure")
   make.body <- function(args_){
     if (length(args_) == 0) body(f)
     else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
@@ -714,7 +714,7 @@ length.recursive <- function(x) {
 # language replacement
 # see https://gist.github.com/TobCap/6348892
 replace.symbol <- function(expr, before, after){
-  stopifnot(is.language(expr) && is.symbol(before))
+  stopifnot(is.language(expr), is.symbol(before))
   eval(substitute(substitute(e, `names<-`(list(after), as.character(before))), list(e = expr)))
 }
 
