@@ -6,7 +6,7 @@ local({
   r["CRAN"] <- "http://cran.ism.ac.jp/"
   #r["R-Forge"] <- "http://r-forge.r-project.org/"
   options(repos = r)
-  enableJIT(3)
+  compiler:::enableJIT(3)
 })
 
 options(stringsAsFactors = FALSE)
@@ -42,7 +42,10 @@ options(expressions = 5e5)
 # load functions from github and attach them in the search path.
 # load startup packages
 local({
-  startup.packages <- c("ggplot2", "gridExtra", "reshape2", "microbenchmark", "rbenchmark", "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC", "data.table", "timeDate", "lubridate", "sos", "PerformanceAnalytics", "quantmod", "DEoptim", "RQuantLib")
+  startup.packages <- c("ggplot2", "gridExtra", "reshape2", "microbenchmark",
+  "rbenchmark", "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC",
+  "data.table", "timeDate", "lubridate", "sos", "PerformanceAnalytics",
+  "quantmod", "DEoptim", "RQuantLib")
   git.dir.url <- "https://raw.github.com/TobCap/R/master"
   download.github <- TRUE
   use.setInternet2 <- TRUE
