@@ -264,7 +264,9 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 ## inspect(.GlobalEnv, 3, 30)
 ## inspect(.GlobalEnv, NULL, NULL) 
 inspect <- function(...) .Internal(inspect(...))
-address <- function(...){
+
+## address() is already used in package "pryr" and "data.table"
+address2 <- function(...){
   capture.output.cat <- function (...) {
     # simplify body(capture.output) and substitute `cat` for `print`
     rval <- NULL
