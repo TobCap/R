@@ -273,8 +273,7 @@ address2 <- function(...){
     file <- textConnection("rval", "w", local = TRUE)
     sink(file)
     on.exit({sink(); close(file)})
-    cat(eval(substitute(list(...))[[2]],  parent.frame()))
-    
+    cat(eval(substitute(list(...))[[2]],  parent.frame())[[1]])
     substring(strsplit(rval[[1]], " ")[[1]][[1]], 2)
   }
   # capture.output(inspect(...))
