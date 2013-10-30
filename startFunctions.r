@@ -249,7 +249,10 @@ assign3 <- function(var.char, val, envir = parent.frame()){
   assign2(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
-`%<-!%` <- function(lhs, rhs) {
+## := is parsable due to a historical reason and can be assigned.
+## See http://developer.r-project.org/equalAssign.html
+## Also see gram.y #2807-2809 in R source code.
+`:=` <- `%<-!%` <- function(lhs, rhs) {
   assign3(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
