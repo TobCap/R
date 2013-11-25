@@ -21,6 +21,15 @@ ltail <- function(x) if(is.null(x$tail)) NULL else x$tail()
   else lhead(lhs) %:% (ltail(lhs) %++% rhs)
 }
 `%!!%` <- function(lseq, n) if (n == 0) lhead(lseq) else ltail(lseq) %!!% (n - 1)
+`%l:%` <- function(x, y) {
+  stopifnot(is.numeric(x), is.numeric(y))
+  out.fun <- function(x, y) {
+    if (x == y) x %:% NULL
+    else if (x < y) x %:% out.fun(x + 1, y)
+    else if (x > y) x %:% out.fun(x - 1, y)
+    else stop("")}
+  out.fun(as.integer(x), as.integer(y))
+}
 
 llist <- function(...) {
   if (is.null(pairlist(...))) NULL
@@ -28,6 +37,14 @@ llist <- function(...) {
 }
 as.llist <- function(vec) {
   do.call(llist, as.list(vec))
+}
+is.llist <- function(x, check.depth = 10) {
+  out.fun <- function(x, n) {
+    if (n == 0 || is.null(x)) TRUE
+    else length(x) == 2 && typeof(x) == "pairlist" && 
+      names(x) == c("head", "tail") && out.fun(ltail(x), n - 1)
+  }
+  out.fun(x, check.depth)
 }
 # x <- llist(1, 2)
 # y <- llist(3, 4, 5)
