@@ -14,6 +14,9 @@ as.formals <- function(x, value = list(quote(expr=))){
   ans[idx] <- rep_len(value, length(idx))
   as.pairlist(ans)
 }
+is.formals <- function(x) {
+  is.pairlist(x) && length(x) == sum(nzchar(names(x)))
+}
 
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
