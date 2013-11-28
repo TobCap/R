@@ -250,19 +250,19 @@ lfib2 <- 0 %:% (1 %:% lzipWith(`+`, lfib2, ltail(lfib2)))
 # http://d.hatena.ne.jp/syou6162/20080831/1220126789
 # http://d.hatena.ne.jp/tar0_t/20110608/1307531065
 
-lprimes1 <- function(x = liota(2)) {
-  lhead(s) %:% lprimes1(lfilter(function(x) x %% lhead(s) != 0, ltail(s)))
+lprimes1 <- function(x = liota(start = 2)) {
+  lhead(x) %:% lprimes1(lfilter(function(y) y %% lhead(x) != 0, ltail(x)))
 }
 ## almost the same speed even thought even sequence is omitted.
-lprimes2 <- function(s = 2 %:% liota(3, 2)) {
-  lhead(s) %:% lprimes2(lfilter(function(x) x %% lhead(s) != 0, ltail(s)))
+lprimes2 <- function(x = 2 %:% liota(start = 3, step = 2)) {
+  lhead(x) %:% lprimes2(lfilter(function(y) y %% lhead(x) != 0, ltail(x)))
 }
 ## This is faster than lprimes1() and lprimes2()
 sieve <- function(x) {
   hd <- lhead(x)
   hd %:% sieve(lfilter(function(y) y %% hd != 0, ltail(x)))
 }
-lprimes3 <- 2 %:% sieve(liota(3, 2))
+lprimes3 <- 2 %:% sieve(liota(start = 3, step = 2))
 
 # > ltake2(10, lprimes1())
 #  [1]  2  3  5  7 11 13 17 19 23 29
