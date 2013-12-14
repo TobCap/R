@@ -3,13 +3,15 @@
 ## Auxiliary function
 as.formals <- function(x, value = list(quote(expr=))){
   ## a faster version of tools:::as.alist.call
+  if (!all(nzchar(x)))
+    stop('Including "" or substitute() is invalid input.')
   if (length(x) == 0)
-    return(NULL)
-  if (is.null(names(x))) 
+    return(NULL)    
+  if (is.null(names(x)))
     return(`names<-`(as.pairlist(rep_len(value, length(x))), as.character(x)))
   
   ans <- as.list(x)
-  idx <- which(names(ans) == "")
+  idx <- which(!nzchar(names(ans)))
   names(ans)[idx] <- vapply(ans[idx], as.character, "")
   ans[idx] <- rep_len(value, length(idx))
   as.pairlist(ans)
