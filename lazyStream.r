@@ -14,7 +14,7 @@
 
 ## basic functions
 lhead <- function(x) x$head
-ltail <- function(x) if(is.null(x$tail)) NULL else x$tail()
+ltail <- function(x) if (is.null(x$tail)) NULL else x$tail()
 `%:%` <- lcons <- function(x, y) pairlist(head = x, tail = function() y)
 `%++%` <- function(lhs, rhs){
   if (is.null(lhs)) rhs
@@ -159,7 +159,7 @@ ldrop <- function(n, x) { # lseq
 lfind <- function(FUN, x) { # value
   hd <- lhead(x)
   if (is.null(hd)) NULL
-  else if(FUN(hd)) hd
+  else if (FUN(hd)) hd
   else lfind(FUN, ltail(x))
 }
 
@@ -170,7 +170,7 @@ llength <- function(x, acc = 0) { # value
 
 lrep.each <- function(x, n) {
   rep.elem <- function(x, n) {
-    if(n == 0) NULL
+    if (n == 0) NULL
     else x %:% rep.elem(x, n - 1)}
   hd <- lhead(x)
   if (is.null(hd)) NULL
