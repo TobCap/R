@@ -24,24 +24,19 @@ do.maker <- function(bind, ret, ..., see.body.call = TRUE){
   parser <- function(x, prev_){
     if (x[[1]] == quote(`%<-%`)){
       arg <- x[[2]]
-      val <- x[[3]]
-      if (!is.null(prev_)) {
-        val <- addElem(prev_, val)
-        next_ <- NULL }}
+      val <- if (is.null(prev_)) x[[3]] else addElem(prev_, x[[3]])
+      next_ <- NULL}
     else if (x[[1]] == quote(`<-`)) {
       # skip binding when normally assigned
-      arg <- val <- NULL
-      if (is.null(prev_)) {next_ <- call("{", x)}
-      else {next_ <- addElem(prev_, x)}}
-    else {
-      # >> then
+      arg <- NULL
+      val <- NULL
+      next_ <- if (is.null(prev_)) call("{", x) else addElem(prev_, x)}
+    else { # >> then
       arg <- as.symbol("_")
-      val <- x
-      if (!is.null(prev_)) {
-        val <- addElem(prev_, val)
-        next_ <- NULL }}
-  
-    list(arg = arg, val = val, next_ = next_)}
+      val <- if (is.null(prev_)) x else addElem(prev_, x)
+      next_ <- NULL}
+    list(arg = arg, val = val, next_ = next_)
+  }
 
   function(exprs, env = parent.frame()){
     stopifnot(substitute(exprs)[[1]] == quote(`{`))
@@ -71,9 +66,8 @@ do.list <- do.maker(
   bind = function(x, f) unlist(lapply(x, function(y) f(y)), recursive = FALSE),
   ret = function(x) list(x),
   guard = function(expr) if (isTRUE(expr)) list(NULL) else list()
+)
 
-  )
-  
 ###############
 ### maybe monad
 do.maybe <- do.maker(
