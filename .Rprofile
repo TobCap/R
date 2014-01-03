@@ -4,9 +4,9 @@
 local({
   r <- getOption("repos")
   r["CRAN"] <- "http://cran.ism.ac.jp/"
-  #r["R-Forge"] <- "http://r-forge.r-project.org/"
+  # r["R-Forge"] <- "http://r-forge.r-project.org/"
   options(repos = r)
-  compiler:::enableJIT(3)
+  invisible(compiler:::enableJIT(3))
 })
 
 options(stringsAsFactors = FALSE)
@@ -18,7 +18,7 @@ options(expressions = 5e5)
 # The command-line option '--max-ppsize' controls the maximum size
 # of the pointer protection stack. This defaults to 50000, the maximum value
 # accepted is 500000.
-# s <- function(n) if(n == 1) 0 else n + s(n - 1)
+# s <- function(n) if (n == 1) 0 else n + s(n - 1)
 
 # --max-ppsize=500000 and options(expressions = 5e5)
 # > s(9287)
@@ -43,9 +43,9 @@ options(expressions = 5e5)
 # load startup packages
 local({
   startup.packages <- c("ggplot2", "gridExtra", "reshape2", "microbenchmark",
-  "rbenchmark", "mmap", "ff", "ffbase", "gmp", "compiler", "doSNOW", "RODBC",
-  "data.table", "timeDate", "lubridate", "sos", "PerformanceAnalytics",
-  "quantmod", "DEoptim", "RQuantLib")
+    "mmap", "ff", "ffbase", "gmp", "compiler", "parallel", "RODBC",
+    "data.table", "timeDate", "lubridate", "PerformanceAnalytics",
+    "quantmod", "RQuantLib", "Rcpp", "RcppDE", "sos")
   git.dir.url <- "https://raw.github.com/TobCap/R/master"
   download.github <- TRUE
   use.setInternet2 <- TRUE
@@ -60,8 +60,8 @@ local({
       utils::setInternet2(TRUE)
       utils::download.file(url = git.url, destfile = local.path)
     } else {
-      if(!"package:RCurl" %in% search()){
-        if(!"RCurl" %in% utils::installed.packages()[,"Package"]) install.packages("RCurl")
+      if (!"package:RCurl" %in% search()){
+        if (!"RCurl" %in% utils::installed.packages()[,"Package"]) install.packages("RCurl")
         library("RCurl", quitely = TRUE)
       }
       # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
@@ -75,22 +75,23 @@ local({
     sys.source(local.path, envir = attach(NULL, name = basename(local.path)))
   }
    
-  if(download.github){
+  if (download.github){
     attach.file(file.path(git.dir.url, "startFunctions.r"))
     attach.file(file.path(git.dir.url, "functionalProgramming.r"))
     # attach.file(file.path(git.dir.url, "lazyStream.r"))
    }
     
-  if(download.github){
-    # load.packages is defined in above "startFunctions.r".
+  if (download.github){
+    # load.packages() is defined in above "startFunctions.r".
     load.packages(startup.packages)
   } else {
     for(x in startup.packages){
-      eval(call("library", x, quietly = TRUE))
+      ## eval(call("library", x, quietly = TRUE))
+      library(x, character.only = TRUE, quietly = TRUE)
       utils::flush.console()
     }
   }
   # load.packages("Rbbg", repos = "http://r.findata.org")
   # load.packages("FinancialInstrument", repos="http://R-Forge.R-project.org")
-  # "dataframe" is not permitted no CRAN from R 3.0.0; see http://www.timhesterberg.net/r-packages 
+  # "dataframe" is removed from CRAN after R 3.0.0; see http://www.timhesterberg.net/r-packages
 })
