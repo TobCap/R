@@ -918,7 +918,7 @@ nest.fun2 <- function(f, n){
 # toInt(if_(false)(one)(two))
 
 # tail call optimization
-# see https://gist.github.com/TobCap/6482462 
+# see https://gist.github.com/TobCap/6482462
 tco <- function(f) {
   # f is copied object; the original f is not changed.
   f.orig <- substitute(f) 
