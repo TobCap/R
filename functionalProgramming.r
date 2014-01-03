@@ -55,8 +55,7 @@ f. <- function(..., env = parent.frame()){
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-## Arrow function.
-## %=>% is reserved for monad's bind operator.
+## Arrow operator as an anonymous function.
 `%->%` <- function(lhs, rhs, env = parent.frame()) {
   expr <- substitute(lhs)
   if (length(expr) > 1) {
