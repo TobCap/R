@@ -256,6 +256,54 @@ assign3 <- function(var.char, val, envir = parent.frame()){
   assign3(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
+## multiple return values and assignments
+`%<~%` <- function(symbol.list, expr, e = parent.frame()) {
+  var.chars <- as.character(substitute(symbol.list)[-1])
+  values <- eval(substitute(expr), enclos = e)
+  
+  # recycling is not allowed.
+  if (length(values) != length(var.chars))
+    stop("The length of answers and variables must be the same.")
+  if (typeof(values) != "list")
+    stop("Only list can be assigned to multiple variables.")
+    
+  for(i in seq_along(var.chars)) {
+    assign(as.character(var.chars[[i]]), values[[i]], envir = e)
+  }
+}
+
+# {x; y; z} %<~% {
+#   a <- 1 + 2
+#   b <- 3 * 4
+#   c <- 5 / 6
+#   list(a, b, c)
+# }
+# rm(x, y, z)
+
+# c(x, y, z) %<~% {
+#   a <- 1 + 2
+#   b <- 3 * 4
+#   c <- 5 / 6
+#   list(a, b, c)
+# }
+# rm(x, y, z)
+
+# counter <- function(i) {
+#   force(i)
+#   list(
+#     increase = function(x = 1) {i <<- i + x; i},
+#     decrease = function(x = 1) {i <<- i - x; i}
+#   )
+# }
+
+# {inc; dec} %<~% counter(10)
+# inc()
+# inc()
+# dec()
+# dec(5)
+# rm(inc, dec, counter)
+
+
 ### memory inspection:
 ## http://stackoverflow.com/questions/10912729/r-object-identity/10913296#10913296
 ## http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2010-March/000508.html
