@@ -62,7 +62,7 @@ local({
     } else {
       if (!"package:RCurl" %in% search()){
         if (!"RCurl" %in% utils::installed.packages()[,"Package"]) install.packages("RCurl")
-        library("RCurl", quitely = TRUE)
+        library("RCurl", quietly = TRUE)
       }
       # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
       utils::download.file(url = git.url, destfile = local.path, method = "curl", extra = "-k")
