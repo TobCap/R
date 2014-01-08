@@ -22,17 +22,21 @@ do.maker <- function(bind, ret, ..., see.body.call = TRUE){
   }
 
   parser <- function(x, prev_){
+    if (length(x) == 1)
+      return(list(arg = quote(`_`), val = x, next_ = NULL))
+
     if (x[[1]] == quote(`%<-%`)){
       arg <- x[[2]]
       val <- if (is.null(prev_)) x[[3]] else addElem(prev_, x[[3]])
       next_ <- NULL}
     else if (x[[1]] == quote(`<-`)) {
       # skip binding when normally assigned
+      # like "let" within do-notation in haskell
       arg <- NULL
       val <- NULL
       next_ <- if (is.null(prev_)) call("{", x) else addElem(prev_, x)}
     else { # >> then
-      arg <- as.symbol("_")
+      arg <- quote(`_`)
       val <- if (is.null(prev_)) x else addElem(prev_, x)
       next_ <- NULL}
     list(arg = arg, val = val, next_ = next_)
