@@ -258,8 +258,17 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 
 ## multiple return values and assignments
 `%<~%` <- function(symbol.list, expr, e = parent.frame()) {
-  var.chars <- as.character(substitute(symbol.list)[-1])
+  symbols_ <- substitute(symbol.list)
+  var.chars <- as.character(symbols_[-1])
   values <- eval(substitute(expr), enclos = e)
+   
+  # x::xs %<~% 1:5
+  # x::xs %<~% list(1,2,3,4,5)
+  if (symbols_[[1]] == "::" && length(symbols_) == 3) {
+    assign(var.chars[[1]], values[[1]], envir = e)
+    assign(var.chars[[2]], values[-1], envir = e)
+    return(invisible())
+  }
   
   # recycling is not allowed.
   if (length(values) != length(var.chars))
@@ -268,7 +277,7 @@ assign3 <- function(var.char, val, envir = parent.frame()){
     stop("Only list can be assigned to multiple variables.")
     
   for(i in seq_along(var.chars)) {
-    assign(as.character(var.chars[[i]]), values[[i]], envir = e)
+    assign(var.chars[[i]], values[[i]], envir = e)
   }
 }
 
@@ -302,6 +311,11 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 # dec()
 # dec(5)
 # rm(inc, dec, counter)
+
+# x::xs %<~% 1:5
+# rm(x, xs)
+# x::xs %<~% list(1,2,3,4,5)
+# rm(x, xs)
 
 
 ### memory inspection:
