@@ -2,7 +2,7 @@
 ## see usage and examples in above
 
 do.maker <- function(bind, ret, ..., see.body.call = TRUE){
-  vars <- append(list(...), list(bind = bind, ret = ret))
+  vars <- c(list(...), list(bind = bind, ret = ret))
   stopifnot(all(vapply(vars, is.function, logical(1))))
 
   as.formals <- function(x) as.pairlist(tools:::as.alist.call(x))
@@ -53,7 +53,7 @@ do.maker <- function(bind, ret, ..., see.body.call = TRUE){
 
     make.call <- function(x, next_ = NULL) {
       if (length(x) == 1) {
-        x[[1]] } # need [[1]] to let list to be symbol
+        x[[1]] } # need [[1]] to let list to be call or symbol
       else {
         parsed <- parser(x[[1]], next_)
         if (!is.null(parsed$next_)) make.call(x[-1], parsed$next_)
