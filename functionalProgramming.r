@@ -229,7 +229,7 @@ cr <- function(f, e = parent.frame()){
 # エラー:  関数でないものを適用しようとしました 
 
 ### curried function creator
-λ <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
+`λ` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
