@@ -226,12 +226,12 @@ cr <- function(f, e = parent.frame()){
 # > call("rnorm", 5, 100)
 # rnorm(5, 100)
 # > curry(call)("rnorm")(5)(100)
-# ã‚¨ãƒ©ãƒ¼:  é–¢æ•°ã§ãªã„ã‚‚ã®ã‚’é©ç”¨ã—ã‚ˆã†ã¨ã—ã¾ã—ãŸ 
+# ƒGƒ‰[:  ŠÖ”‚Å‚È‚¢‚à‚Ì‚ğ“K—p‚µ‚æ‚¤‚Æ‚µ‚Ü‚µ‚½ 
 
 ### curried function creator
-`Î»` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
-### Address of Î» (lambda) in Unicode is U+03BB or \u03BB
-# Î»(g, x, g(g(x)))(Î»(y, y+1))(5)
+`ƒÉ` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
+### Address of ƒÉ (lambda) in Unicode is U+03BB or \u03BB
+# ƒÉ(g, x, g(g(x)))(ƒÉ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
 # l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
@@ -324,7 +324,7 @@ flip <- function(fun, l = 1, r = 2, env = parent.frame()){
 
 ###
 # avoiding conflict with utils::zip
-# çµå±€ mapply
+# Œ‹‹Ç mapply
 zip. <- function(..., FUN = list){
   dots <- list(...)
   args.seq <- seq_len(min(vapply(dots, length, 0)))
@@ -375,7 +375,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 # .reduce(:+);
 # end
 # func([10,20,30,40,50]);
-# â†’ 400
+# ¨ 400
 
 ### http://neue.cc/2011/02/14_302.html
 "%|>%" <- function(x, f) f(x)
@@ -497,8 +497,8 @@ fix. <- function(g) f <- g(f)
 
 ### g = Y(f), f(g) = g; f = Y(g), g(f) = f
 ### Y g = g(Y g)
-### Y = Î»f.(Î»x.f (x x)) (Î»x.f (x x))
-### Z = Î»f.(Î»x.f (Î»y. x x y)) (Î»x.f (Î»y. x x y))
+### Y = ƒÉf.(ƒÉx.f (x x)) (ƒÉx.f (x x))
+### Z = ƒÉf.(ƒÉx.f (ƒÉy. x x y)) (ƒÉx.f (ƒÉy. x x y))
 
 # > mult.maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
 # > microbenchmark(fix0(mult.maker)(100),fix1(mult.maker)(100),fix2(mult.maker)(100), fix3(mult.maker)(100), fix4(mult.maker)(100))
@@ -565,7 +565,7 @@ tracer <- function(f) {
   num <- 0
   function(...){
     key <- paste(list(...), collapse=",")
-    num <<- num + 1 # keyã‚ˆã‚Šä¸‹ã§ãªã„ã¨ã„ã‘ãªã„ å‰¯ä½œç”¨ã®å¼Šå®³
+    num <<- num + 1 # key‚æ‚è‰º‚Å‚È‚¢‚Æ‚¢‚¯‚È‚¢ •›ì—p‚Ì•¾ŠQ
     suffix <- if (num <= 3) switch(num, "st", "nd", "rd") else "th"
     cat(num, suffix, " call with argument: ", key, "\n", sep = "")
     f(...)
@@ -946,7 +946,7 @@ sum.rec <- function(n, acc = 0){
 # > sum.rec(10)
 # [1] 55
 # > sum.rec(1e5)
-# ã‚¨ãƒ©ãƒ¼ï¼š  protect()ï¼šãƒ—ãƒ­ãƒ†ã‚¯ã‚·ãƒ§ãƒ³ã‚¹ã‚¿ãƒƒã‚¯
+# ƒGƒ‰[F  protect()FƒvƒƒeƒNƒVƒ‡ƒ“ƒXƒ^ƒbƒN
 # > tco(sum.rec)(1e5)
 # [1] 5000050000
 
@@ -955,7 +955,7 @@ sum.rec <- function(n, acc = 0){
 #   else pow.rec(x, n - 1, x * acc)
 # }
 # > pow.rec(1+1e-5, 1e5)
-#  ã‚¨ãƒ©ãƒ¼:  è©•ä¾¡ãŒã‚ã¾ã‚Šã«æ·±ãå…¥ã‚Œå­ã«ãªã£ã¦ã„ã¾ã™ã€‚ç„¡é™ã®å†å¸°ã‹ options(expressions=)ï¼Ÿ 
+#  ƒGƒ‰[:  •]‰¿‚ª‚ ‚Ü‚è‚É[‚­“ü‚êq‚É‚È‚Á‚Ä‚¢‚Ü‚·B–³ŒÀ‚ÌÄ‹A‚© options(expressions=)H 
 # > tco(pow.rec)(1+1e-5, 1e5)
 # [1] 2.718268
 
