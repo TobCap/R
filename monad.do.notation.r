@@ -10,9 +10,13 @@ do.maker <- function(bind, ret, ..., see.body.call = TRUE){
   set.var <- function(lst, e){
     list2env(
       lapply(lst, function(f) if (is.function(f)) `environment<-`(f, e) else f),
-      envir = e)}
+      envir = e) }
 
-  addElem <- function(lst, obj) `[[<-`(lst, 1 + length(lst), obj)
+  addSymbol <- function(lang, sym, add.brace = FALSE) {
+    if (is.null(lang) && !add.brace) sym
+    else if (is.null(lang) && add.brace) call("{", sym) 
+    else `[[<-`(lang, 1 + length(lang), sym)
+  }
 
   call2str <- function(calls){
     calls1 <- deparse(calls, 500, control = "keepNA")
@@ -27,18 +31,18 @@ do.maker <- function(bind, ret, ..., see.body.call = TRUE){
 
     if (x[[1]] == quote(`%<-%`)){
       arg <- x[[2]]
-      val <- if (is.null(prev_)) x[[3]] else addElem(prev_, x[[3]])
-      next_ <- NULL}
+      val <- addSymbol(prev_, x[[3]])
+      next_ <- NULL }
     else if (x[[1]] == quote(`<-`)) {
       # skip binding when normally assigned
       # like "let" within do-notation in haskell
       arg <- NULL
       val <- NULL
-      next_ <- if (is.null(prev_)) call("{", x) else addElem(prev_, x)}
+      next_ <- addSymbol(prev_, x, add.brace = TRUE) }
     else { # >> then
       arg <- quote(`_`)
-      val <- if (is.null(prev_)) x else addElem(prev_, x)
-      next_ <- NULL}
+      val <- addSymbol(prev_, x)
+      next_ <- NULL }
     list(arg = arg, val = val, next_ = next_)
   }
 
@@ -49,11 +53,11 @@ do.maker <- function(bind, ret, ..., see.body.call = TRUE){
 
     make.call <- function(x, next_ = NULL) {
       if (length(x) == 1) {
-        return(x[[1]])}
+        x[[1]] } # need [[1]] to let list to be symbol
       else {
         parsed <- parser(x[[1]], next_)
         if (!is.null(parsed$next_)) make.call(x[-1], parsed$next_)
-        else call("bind", parsed$val, call("function", as.formals(parsed$arg), make.call(x[-1])))}}
+        else call("bind", parsed$val, call("function", as.formals(parsed$arg), make.call(x[-1])))} }
 
     body.call <- make.call(substitute(exprs)[-1]) # remove `{` by [-1]
     
