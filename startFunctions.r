@@ -38,9 +38,11 @@ load.packages <- (function(){
         p(cran.packages[pkg,], "is newly installed and loaded.")
       }
       utils::flush.console()
-    }
+    } 
     
-    if(!foundInCRAN) p("If you want to install some packages from r-forge or Omegahat,\nplease firstly do setRepositories() and select repos, then call me again.")
+    if(!foundInCRAN) p("Some packages are not found in a current CRAN.\n 
+      If you want to install them from r-forge or Omegahat,\n
+      do firstly setRepositories() and select repos, then call me again.")
     
     invisible(utils::flush.console())
   }
