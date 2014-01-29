@@ -59,6 +59,8 @@ local({
     "quantmod", "RQuantLib", "Rcpp", "RcppDE", "sos")
   
   answer <- substr(readline("download files in your github (y/n)?  "), 1L, 1L)
+  utils::flush.console()
+  
   switch(tolower(answer)
     , y = {download.github <- TRUE}
     , n = {download.github <- FALSE}
