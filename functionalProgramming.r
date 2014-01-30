@@ -917,48 +917,6 @@ nest.fun2 <- function(f, n){
 # toInt(if_(true)(one)(two))
 # toInt(if_(false)(one)(two))
 
-# tail call optimization
-# see https://gist.github.com/TobCap/6482462
-tco <- function(f) {
-  # f is copied object; the original f is not changed.
-  f.orig <- substitute(f) 
-  body(f) <- replace.multi(body(f), c(quote(Recall), f.orig), quote(list)) 
-  arg.names <- names(formals(f))
-
-  out.fun <- function(){
-    environment(f) <- e <- list2env(mget(arg.names), parent = environment(f))
-    while(TRUE){
-      ans <- f() # evaluate
-      if (!is.list(ans) || length(ans) != length(arg.names)) break
-      e <- list2env(`names<-`(ans, arg.names), envir = e) #update values
-    }
-    ans
-  }
-  formals(out.fun) <- formals(f)
-  formals(f) <- NULL # makes "f" find variables in "e".
-  out.fun
-}
-
-sum.rec <- function(n, acc = 0){
-  if (n == 0) acc
-  else sum.rec(n - 1, acc + n)
-}
-# > sum.rec(10)
-# [1] 55
-# > sum.rec(1e5)
-# エラー：  protect()：プロテクションスタック
-# > tco(sum.rec)(1e5)
-# [1] 5000050000
-
-# pow.rec <- function(x, n, acc = 1){
-#   if(n == 0) acc
-#   else pow.rec(x, n - 1, x * acc)
-# }
-# > pow.rec(1+1e-5, 1e5)
-#  エラー:  評価があまりに深く入れ子になっています。無限の再帰か options(expressions=)？ 
-# > tco(pow.rec)(1+1e-5, 1e5)
-# [1] 2.718268
-
 lang2char <- function(expr, type = c("rexp", "sexp")){
   type <- match.arg(type)
   stopifnot(is.call(expr))
