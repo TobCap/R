@@ -51,7 +51,8 @@ options(expressions = 5e5)
 # load startup packages
 local({
   git.dir.url <- "https://raw.github.com/TobCap/R/master"
-  git.files <- file.path(git.dir.url, c("startFunctions.r", "functionalProgramming.r"))
+  files <- c("startFunctions.r", "functionalProgramming.r", "tailCallOptimization.r")
+  git.files <- file.path(git.dir.url, files)
   startup.packages <- c(
     "ggplot2", "gridExtra", "reshape2", "microbenchmark",
     "mmap", "ff", "ffbase", "gmp", "compiler", "parallel", "RODBC",
@@ -61,11 +62,12 @@ local({
   answer <- substr(readline("download files in your github (y/n)? "), 1L, 1L)
   utils::flush.console()
   
-  switch(tolower(answer)
-    , y = {download.github <- TRUE}
-    , n = {download.github <- FALSE}
-    , {cat("quit downloading from github"); download.github <- FALSE}
-  )  
+  download.github <- 
+    switch(tolower(answer)
+      , y = TRUE
+      , n = FALSE
+      , {cat("quit downloading from github"); FALSE}
+    )  
   
   isWindows <- .Platform$OS.type == "windows"
   if (isWindows) utils:::setInternet2(TRUE)
