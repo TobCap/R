@@ -55,7 +55,7 @@ f. <- function(..., env = parent.frame()){
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-## Arrow operator as an anonymous function.
+## goes-to function can check arguments class.
 `%->%` <- function(lhs, rhs, env = parent.frame()) {
   expr <- substitute(lhs)
   if (length(expr) > 1) {
@@ -163,6 +163,83 @@ curry <- function (fun, env = parent.frame()) {
       recursiveCall(len - 1, append(arg, list(x)))}}
   recursiveCall(length(formals(args(fun))), list())
 }
+# > curry(function(x, y, z) x + y + z)(1)(2)(3)
+# [1] 6
+### `f.` is already defined above and save your typing.
+# > curry(f.(x, y, z, x + y + z))(1)(2)(3)
+# [1] 6
+
+# Arrow operaters defined later are useful.
+# > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
+# [1] 6
+
+# plus2 <- curry(`+`)(2)
+# plus2(10) # 12
+
+## If curried function has dots argument, you can recogize its finish by empty (not NULL) argument just like f().
+# > curry(sum)(1)(2)
+# [1] 3
+# > curry.dots(sum)(1)(2)(NA)(3)()(na.rm = TRUE)
+# [1] 6
+
+# > curry(lapply)(1:5)(function(x) x ^ 2)()
+# Error in ((curry(lapply)(1:5))(function(x) x^2))() : 
+#   argument "x" is missing, with no default
+
+# > curry.dots(lapply)(1:5)(function(x) x ^ 2)()
+# [[1]]
+# [1] 1
+
+# > call("rnorm", 5, 100)
+# rnorm(5, 100)
+# > curry(call)("rnorm")(5)(100)()
+# Error: attempt to apply non-function
+# > curry.dots(call)("rnorm")(5)(100)()
+# rnorm(5, 100)
+
+curry.dots <- function (fun, env = parent.frame()) {
+  args_ <- formals(args(fun))
+  has.quoted <- FALSE
+  is.dots <- function(n) names(args_)[length(args_) - n + 1] == "..."
+  
+  recursiveCall <- function(len, arg) {
+    if (len == 0) do.call(fun, arg, quote = has.quoted, envir = env)
+    else
+      function(...) {
+        x <- list(...)
+        if (is.dots(len)) {
+          if (length(x) == 0) recursiveCall(len - 1, arg)
+          else {
+            if (is.language(x[[1]])) has.quoted <<- TRUE
+            recursiveCall(len, append(arg, as.list(x)))}}
+        else {
+          if (is.language(x[[1]])) has.quoted <<- TRUE
+          recursiveCall(len - 1, append(arg, as.list(x)))}}}
+  recursiveCall(length(args_), list())
+}
+
+# This recursively composes language-tree and is faster than curry(), but only closure is acceptable
+curry.closure <- function(f, e = parent.frame()){
+  stopifnot(is.function(f), typeof(f) == "closure")
+  make.body <- function(args_){
+    if (length(args_) == 0) body(f)
+    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+  }
+  eval(make.body(formals(args(f))), envir = environment(f), enclos = e)
+}
+
+# > c1 <- curry(rnorm); c2 <- curry.closure(rnorm)
+# > library(microbenchmark)
+# > microbenchmark(c1(10)(100)(1), c2(10)(100)(1))
+# Unit: microseconds
+#              expr    min      lq median     uq     max neval
+#  (c1(10)(100))(1) 42.796 44.3555 45.025 46.362 145.771   100
+#  (c2(10)(100))(1) 10.700 11.5910 12.037 12.928  19.169   100
+
+# h1 <- curry(rnorm); h1(10)(100)(1)
+# h2 <- curry.closure(rnorm)(10)(100); h2(1)
+# h3 <- curry.closure(D); h3(quote(x^5))("x")
+# h4 <- curry.closure(D)(quote(x^5)); h4("x")
 
 # particial application
 # an undercore symbol `_` is requited to bind variales
@@ -189,44 +266,13 @@ pa <- function(expr, e = parent.frame()){
 # f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
 # f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
 
-# only closure is acceptable
-cr <- function(f, e = parent.frame()){
-  stopifnot(is.function(f), typeof(f) == "closure")
-  make.body <- function(args_){
-    if (length(args_) == 0) body(f)
-    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
-  }
-  eval(make.body(formals(args(f))), envir = environment(f), enclos = e)
+cr <- function(f) {
+  call.fun <- 
+    if (any(names(formals(args(f))) == "...")) curry.dots
+    else if (typeof(f) == "closure") curry.closure
+    else curry
+  call.fun(f)
 }
-
-# h1 <- cr(rnorm); h1(10)(100)(1)
-# h2 <- cr(rnorm)(10)(100); h2(1)
-# h3 <- cr(D); h3(quote(x^5))("x")
-# h4 <- cr(D)(quote(x^5)); h4("x")
-
-# plus2 <- curry(`+`)(2)
-# plus2(10) # 12
-
-# curry(D)(quote(x^5))("x")
-# previous version of `curry` does not run on above code.
-
-### flip is defined below
-# divBy10 <- curry(flip(`/`))(10)
-# divBy10(24) # = 2.4
-
-# > curry(function(x, y, z) x + y + z)(1)(2)(3)
-# [1] 6
-### `f.` is already defined above and save your typing.
-# > curry(f.(x, y, z, x + y + z))(1)(2)(3)
-# [1] 6
-# > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
-# [1] 6
-
-# unsurpported: if one of fun's arguments is dot-dot-dot, it does not work
-# > call("rnorm", 5, 100)
-# rnorm(5, 100)
-# > curry(call)("rnorm")(5)(100)
-# エラー:  関数でないものを適用しようとしました 
 
 ### curried function creator
 `λ` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
@@ -239,7 +285,7 @@ cr <- function(f, e = parent.frame()){
 ### http://www.angelfire.com/tx4/cus/combinator/birds.html
 # S <- f.(x, f.(y, f.(z, (x(z))(y(z)) )))
 # K <- f.(x, f.(y, x))
-# I <- S(K)(K) # f.(x, x) 
+# I <- S(K)(K) # == f.(x, x) == identity()
 
 # see https://gist.github.com/TobCap/6255395
 uncurry <- function(fun){ 
@@ -275,13 +321,16 @@ flip <- function(fun, l = 1, r = 2, env = parent.frame()){
 # > flip(`-`)(2, 5)
 # [1] 3
 
+# divBy10 <- curry(flip(`/`))(10)
+# divBy10(24) # == 2.4
+
 # > flip(sapply)(sqrt, 1:4)
 # [1] 1.000000 1.414214 1.732051 2.000000
 
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
-# > Dx <- curry(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
+# > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
 
@@ -323,7 +372,7 @@ flip <- function(fun, l = 1, r = 2, env = parent.frame()){
 
 ###
 # avoiding conflict with utils::zip
-# 結局 mapply
+# just using mapply()
 zip. <- function(..., FUN = list){
   dots <- list(...)
   args.seq <- seq_len(min(vapply(dots, length, 0)))
@@ -360,27 +409,11 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 # zip.(1:3, 4:6, 7:9)
 # zip..(1:3, letters[1:3])
 
-# zipWith(f.(x,y, 2*x+y), 1:4, 5:8)
-#
-# > func <- function(x) x %|% zip.(.., 0:(length(x)-1)) %|% Map(prod, ..) %|% Reduce(`+`, ..)
-# > func(seq(10, 50, by=10))
-# [1] 400
-#
-### http://mew.org/~kazu/material/2011-haskell.pdf
-### Ruby
-# def func (ar)
-# ar.zip((0..ar.length).to_a) \
-# .map{|(x,i)|x*i} \
-# .reduce(:+);
-# end
-# func([10,20,30,40,50]);
-# → 400
-
-### http://neue.cc/2011/02/14_302.html
+## http://neue.cc/2011/02/14_302.html
 "%|>%" <- function(x, f) f(x)
 "%<|%" <- function(f, x) f(x)
 
-### functional composition
+## functional composition
 "%>>%" <- function(f, g) function(x) g(f(x))
 "%<<%" <- function(f, g) function(x) f(g(x))
 compose. <- function(f, g) function(x) f(g(x))
@@ -416,13 +449,13 @@ compose. <- function(f, g) function(x) f(g(x))
 # > 1:5 %|% {..-1} %|% {..^2}
 # [1]  0  1  4  9 16
 
-### the same
+### same result
 # > Filter(function(x) x%%2==0, 1:5)
 # [1] 2 4
 # > 1:5 %|% (..%%2==0)
 # [1] 2 4
 
-# here, with %|% operator, right assignment is useful to define a variable
+# With %|% operator, right assignment is an intuitive way, I feel, to define a variable
 # > 1:10 %|% (..%%2==0) %|% ..^2 -> x
 # > x
 # [1]   4  16  36  64 100
