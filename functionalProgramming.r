@@ -874,22 +874,24 @@ nest.fun2 <- function(f, n){
   if (n == 0) identity
   else compose.(f, nest.fun2(f, n - 1))
 }
-# > benchmark(tail.rec = nest.fun(function(x) {x}, 100)(0), simple = nest.fun2(function(x) {x}, 100)(0), replications=1e4)[,1:4]
-#       test replications elapsed relative
-# 2   simple        10000     3.2 2.666667
-# 1 tail.rec        10000     1.2 1.000000
-#
-# > benchmark(tail.rec = nest.fun(function(x) {x}, 10)(0), simple = nest.fun2(function(x) {x}, 10)(0), replications=1e5)[,1:4]
-#       test replications elapsed relative
-# 2   simple       100000    3.30 1.240602
-# 1 tail.rec       100000    2.66 1.000000
-#
-# > benchmark(tail.rec = nest.fun(function(x) {x}, 1)(0), simple = nest.fun2(function(x) {x}, 1)(0), replications=1e6)[,1:4]
-#       test replications elapsed relative
-# 2   simple      1000000    5.52 1.000000
-# 1 tail.rec      1000000    8.31 1.505435
 
+# > microbenchmark(tail.rec = nest.fun(function(x) {x}, 100)(0), simple = nest.fun2(function(x) {x}, 100)(0), times=1e4)
+# Unit: microseconds
+#      expr     min      lq  median      uq       max neval
+#  tail.rec 140.867 184.554 205.951 234.927  5700.185 10000
+#    simple 308.480 406.998 453.804 525.575 42763.638 10000
 
+# > microbenchmark(tail.rec = nest.fun(function(x) {x}, 10)(0), simple = nest.fun2(function(x) {x}, 10)(0), times=1e5)
+# Unit: microseconds
+#      expr    min     lq median     uq      max neval
+#  tail.rec 24.964 27.639 30.760 37.892  4637.00 1e+05
+#    simple 29.868 33.435 37.446 45.916 51108.19 1e+05
+
+# > microbenchmark(tail.rec = nest.fun(function(x) {x}, 1)(0), simple = nest.fun2(function(x) {x}, 1)(0), times = 1e6)
+# Unit: microseconds
+#      expr   min    lq median    uq      max neval
+#  tail.rec 4.458 5.796  6.687 7.579 41602.83 1e+06
+#    simple 3.567 4.459  5.350 6.242 63045.72 1e+06
 
 # > nest.fun(f.(x, 1 + 1/x), 100)(1) == (1+sqrt(5))/2
 # [1] TRUE
