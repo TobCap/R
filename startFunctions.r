@@ -12,7 +12,7 @@ load.packages <- (function(){
       local.lib <- utils:::installed.packages()[,c("Package", "Version")]
     foundInCRAN <- TRUE
     
-    if(!identical(unname(repos.mem), unname(repos))){
+    if(!setequal(repos.mem, repos)){
       repos.mem <<- unique(c(repos.mem, repos))
       delayedAssign("cran.packages", {
           p("Accessing CRAN via Internet takes few seconds")
@@ -38,9 +38,11 @@ load.packages <- (function(){
         p(cran.packages[pkg,], "is newly installed and loaded.")
       }
       utils::flush.console()
-    }
+    } 
     
-    if(!foundInCRAN) p("If you want to install some packages from r-forge or Omegahat,\nplease firstly do setRepositories() and select repos, then call me again.")
+    if(!foundInCRAN) p("Some packages are not found in a current CRAN.\n 
+      If you want to install them from r-forge or Omegahat,\n
+      do firstly setRepositories() and select repos, then call me again.")
     
     invisible(utils::flush.console())
   }
@@ -63,13 +65,39 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 
 `%!in%` <- Negate(`%in%`)
 `%??%` <- function(x, y) if(is.null(x)) y else x
-`%**%` <- function(mat, n, acc = diag(1, dim(mat))){
+is.nil <- function(x) is.null(x) || length(x) == 0 && is.list(x)
+
+## matrix operation
+`%^%` <- `%**%` <- function(mat, n, acc = diag(1, dim(mat))){
   if (n == 0) acc
   else if (n %% 2 == 0) Recall(mat %*% mat, n / 2, acc)
   else Recall(mat, n - 1, mat %*% acc)
 }
+rot90 <- function(m, k = 1){
+  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  (function(M, n){
+    if(n == 0) return(M)
+    else if(n == 2) return(M[nrow(M):1, ncol(M):1])
+    else Recall(t(M)[ncol(M):1, ], n - 1)
+  })(m, as.integer(k) %% 4)
+}
+fliplr <- function(m){
+  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  m[, ncol(m):1]
+}
+flipud <- function(m){
+  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  m[nrow(m):1, ]
+}
+repmat <- function(m, nr, nc = nr) {
+  if(length(dim(m)) > 2) stop("over 3 dim is unacceptable")
+  if(nr <= nc) 
+    do.call(cbind, rep.int(list(do.call(rbind, rep.int(list(m), nr))), nc))
+  else
+    do.call(rbind, rep.int(list(do.call(cbind, rep.int(list(m), nc))), nr))
+}
 
-# extended list definition; can refer to other variables 
+## extended list definition; can refer to other variables 
 # list2(x = 1, y = x)
 # list2(x = 1:5, y = 1, z=length(x))
 # list2(x = 1, y = x + 10,z = y * 2)
@@ -79,81 +107,69 @@ makeActiveBinding("Q", q, env = as.environment("startFunctions.r"))
 # list2(x = z, y = 10 + x, z = y + 3) #circuler reference
 # list2(m = matrix(1:12,4,3), nr = nrow(m), nc = ncol(m))
 # list2(x = 1, y = function(k) x * k)
-list2 <- function(..., envir = parent.frame()){
-  l <- as.list(match.call(expand.dots=FALSE)$...)
-  simplify <- function(lst, toplst, env = envir) {
-    if(length(lst) == 1 && !is.symbol(lst)){
-      lst
-    } else if(length(lst) == 1 && is.symbol(lst)) {
-      tryCatch({tmp <- eval(lst, toplst, env); if (is.function(tmp)) lst else tmp},
-        error = function(e) lst)
-    } else if (is.language(lst)){
-      tmp <- lapply(lst, simplify, toplst = toplst, env = envir)
-      tryCatch(eval(as.call(tmp), toplst, envir), error = function(e) as.call(tmp))
-    } 
+list2 <- function(..., env = parent.frame()){
+  args.orig <- as.list(match.call(expand.dots=FALSE)$...)
+  simplify <- function(lst) {
+    evaled.lst <- lst
+    for(i in seq_along(args.orig)){
+      evaled.lst <- eval(substitute(substitute(e, args.orig), list(e = evaled.lst)))
+    }
+    ## recursive call is costly and slower than `for`
+    # make.call <- function(x){
+    #   if(length(x) == 0) return(lst)
+    #   else eval(substitute(substitute(e, args.orig), list(e = make.call(x[-1]))))
+    # }    
+    # evaled.lst <- make.call(substitute(lst))
+    if(is.call(evaled.lst) && evaled.lst[[1]] != quote(`function`) && 
+      isTRUE(!all(sapply(all.vars(evaled.lst), exists, envir = env))))
+      stop("circulaer reference is not allowed")
+    eval(evaled.lst, args.orig, env)
   }
-  lapply(l, simplify, toplst = l, envir)
+  lapply(args.orig, simplify)
 }
 
-# faster functions
-load.packages("plyr"); lapply.seq <- plyr:::loop_apply;
-# install.package("rbenchmark"); library("rbenchmark")
-# benchmark(
-  # lapply(1:1e4, function(x){x}),
-  # lapply(seq_len(1e4), function(x){x}),
-  # lapply.seq(1e4, function(x){x})
-# )
-apply.mat <- function(X, MARGIN, FUN, ...){
-  if(!(MARGIN == 1 | MARGIN == 2)) stop("MARGIN must be 1 or 2.")
-  if(!is.matrix(X)) stop("X must be matrix")
-  if(MARGIN == 1){
-    ans <- do.call(rbind, lapply.seq(nrow(X), function(z) FUN(X[z,], ...)))
-    `attributes<-`(ans, list(dim = dim(ans), dimnames = list(dimnames(X)[[1]], `if`(ncol(ans) == ncol(X), dimnames(X)[[2]], NULL))))
+## The answer keeps as matrix.
+apply.mat <- function(X, MARGIN, FUN, ...) {
+  if (!(MARGIN == 1 || MARGIN == 2)) stop("MARGIN must be 1 or 2.")
+  if (!is.matrix(X)) stop("X must be matrix")
+  
+  if (MARGIN == 1) {
+    ans <- do.call(rbind, lapply(seq_len(dim(X)[[1]]), function(z) FUN(X[z,], ...)))
+    `dimnames<-`(ans, list(dimnames(X)[[1]], `if`(ncol(ans) == ncol(X), dimnames(X)[[2]], NULL)))
   } else {
-    ans <- do.call(cbind, lapply.seq(ncol(X), function(z) FUN(X[,z], ...)))
-    `attributes<-`(ans, list(dim = dim(ans), dimnames = list(`if`(nrow(ans) == nrow(X), dimnames(X)[[1]], NULL), dimnames(X)[[2]])))
+    ans <- do.call(cbind, lapply(seq_len(dim(X)[[2]]), function(z) FUN(X[,z], ...)))
+    `dimnames<-`(ans, list(`if`(nrow(ans) == nrow(X), dimnames(X)[[1]], NULL), dimnames(X)[[2]]))
   }
-} 
-# 'attributes<-' is faster than structure because of less copies.
-# apply.mat0 <- function(X, MARGIN, FUN, ...){
-  # if(!(MARGIN == 1 | MARGIN == 2)) stop("MARGIN must be 1 or 2.")
-  # if(!is.matrix(X)) stop("X must be matrix")
-  # if(MARGIN == 1){
-    # ans <- structure(do.call(rbind, lapply.seq(nrow(X), function(z) FUN(X[z,], ...))), dimnames = list(dimnames(X)[[1]], NULL))
-    # if(ncol(ans) == ncol(X)) colnames(ans) <- colnames(X)
-    # return(ans)
-  # } else {
-    # ans <- structure(do.call(cbind, lapply.seq(ncol(X), function(z) FUN(X[,z], ...))), dimnames = list(NULL, dimnames(X)[[2]]))
-    # if(nrow(ans) == nrow(X)) rownames(ans) <- rownames(X)
-    # return(ans)
-  # }
-# } 
+}
 
-# xx <- matrix(1:4,2,2)
-# `attributes<-`(xx, list(dim=dim(xx), dimnames = list(letters[1:2], LETTERS[1:2])))
-# `attributes<-`(xx, c(list(dim=dim(xx)), list(dimnames = list(letters[1:2], LETTERS[1:2]))))
+# m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste0("x", 1:3)))
+# apply(m, 1, sum) # vectored
+# apply.mat(m, 1, sum) # keep matrix
+# apply(m, 1, cumsum) # transposed
+# apply.mat(m, 1, cumsum) # keep layout
 #
-# > benchmark(l=list(a=1, b=list(2,3)), c=c(list(a=1), list(b=list(2,3))),replications=1e6, columns=1:4)
-  # test replications user.self sys.self
-# 2    c      1000000      4.15     0.01
-# 1    l      1000000      3.32     0.00
+# m2 <- matrix(0, 1e3, 1e3)
+# > microbenchmark(apply=apply(m2, 1, sum), apply.mat = apply.mat(m2, 1, sum), rowSums=rowSums(m2))
+# Unit: milliseconds
+#       expr       min       lq     median         uq       max neval
+#      apply 56.161379 93.45846 114.844119 119.433256 126.45192   100
+#  apply.mat 24.092916 44.84445  52.180738  54.140633  84.65420   100
+#    rowSums  4.125745  7.26764   9.172035   9.301981  10.17059   100
 
-# benchmark(x1 = 'if'(TRUE, 1, 0), x2 = .Primitive("if")(TRUE, 1, 0), x3 = if(TRUE) 1 else 0, replications=1e5)[,1:4]
-# almost equal time
-
-# m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste("x", 1:3, sep="")))
-# apply(m, 1, cumsum) ## transposed!
-# apply.mat(m, 1, cumsum) # the same layout
-#
-# m2 <- matrix(0, 1e3, 1e3)#
-# > benchmark(apply(m2, 1, sum), apply.mat(m2, 1, sum), rowSums(m2))[,1:4]
-#                    test replications elapsed relative
-# 1     apply(m2, 1, sum)          100    4.38 3.421875
-# 2 apply.mat(m2, 1, sum)          100    1.28 1.000000
-
-# y <- matrix(0, 1e3, 1e3)
-# > benchmark("ncol"=ncol(y), "[2]"=dim(y)[2], "[2L]"=dim(y)[2L], "[[2]]"=dim(y)[[2]], "[[2L]]"=dim(y)[[2L]], replications=1e5)[,1:5]
-# > benchmark("nrow"=nrow(y), "[1]"=dim(y)[1], "[1L]"=dim(y)[1L], "[[1]]"=dim(y)[[1]], "[[1L]]"=dim(y)[[1L]], replications=1e5)[,1:5]
+### lookup for matrix or data.frame
+lookup <- function(values, tbl, search.col = 1) {
+  stopifnot(is.data.frame(tbl) || is.matrix(tbl))
+  
+  if(is.character(search.col))
+    search.col <- match(search.col, colnames(tbl))
+  stopifnot(!is.na(search.col))
+  
+  target <-  
+    if (search.col == 0) rownames(tbl)
+    else tbl[,search.col]
+    
+  tbl[target %in% values, ]
+}
 
 ###
 cd <- function(dir) {
@@ -164,9 +180,15 @@ cd <- function(dir) {
 }
 
 ### get current order of lapply or vapply
-current.order <- function() sys.call(sys.parent())[[2]][[3]]
+current.order <- function() sys.call(-1)[[2]][[3]]
+current.name <- function() names(eval.parent(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
 # lapply(letters[3:5], function(x) current.order())
-# vapply(letters[3:5], function(x) current.order(), 0) 
+# vapply(letters[3:5], function(x) current.order(), 0)
+# lapply(list(a=1, b="b", c=33),
+#   function(x) {
+#     n <- current.name()
+#     o <- current.order()
+#     list(n, o)})
 
 ###
 rm.variables <- function(env = .GlobalEnv) {
@@ -177,4 +199,152 @@ rm.functions <- function(env = .GlobalEnv) {
 }
 rm.all <- function(env = .GlobalEnv) {
   rm(list = ls(all = TRUE, envir = env), envir = env)
+}
+
+### assignment
+## see examples in https://gist.github.com/TobCap/6713338
+## class is bound when assigning
+assign2 <- function(x.char, init.val, check.funs = class, envir = parent.frame()) {
+  ## The idea of this function comes from makeActiveBinding's example.
+  ## Enter ?makeActiveBinding in R console.
+
+  checker <- c(check.funs)
+  if(!all(vapply(checker, is.function, FALSE)))
+    stop("check.funs must be function")
+
+  x.sym <- as.symbol(x.char)
+  
+  x <- init.val
+  checked.x <- lapply(checker, function(f) f(x))
+  checked.x1 <- checked.x[[1]] # for speed-up when length(checked.funs) == 1
+
+  msg <- paste0(
+    "Right-side's ",
+    if(length(checker) == 1) substitute(check.funs)
+    else paste0(as.character(as.list(substitute(check.funs))[-1]), collapse = " or "),
+    " is different from existing value.", collapse = "")
+
+  out.fun <- function(v) {
+    if (!missing(v)){
+      for(i in seq_along(checker))
+        if(checker[[i]](v) != checked.x[[i]])
+          stop(msg)
+      x <<- v
+    }
+    x
+  }
+  if(length(checker) == 1) # for speed-up
+    body(out.fun)[[2]][[3]][[2]] <- quote(if (check.funs(v) != checked.x1) stop(msg))
+
+  cat(x.sym, "is created!", "\n")
+  invisible(makeActiveBinding(x.sym, out.fun, envir))
+}
+
+## assign immutable variable
+assign3 <- function(var.char, val, envir = parent.frame()){
+  if(!is.character(var.char)) stop("1st argument must be character")
+  assign(var.char, val, envir = envir)
+  invisible(lockBinding(var.char, envir))
+}
+
+`%<-@%` <- function(lhs, rhs){
+  assign2(as.character(substitute(lhs)), rhs, envir = parent.frame())
+}
+
+## := is parsable due to a historical reason and can be assigned.
+## See http://developer.r-project.org/equalAssign.html
+## Also see gram.y #2807-2809 in R source code.
+`:=` <- `%<-!%` <- function(lhs, rhs) {
+  assign3(as.character(substitute(lhs)), rhs, envir = parent.frame())
+}
+
+## multiple return values and assignments
+`%<~%` <- function(symbol.list, expr, e = parent.frame()) {
+  symbols_ <- substitute(symbol.list)
+  var.chars <- as.character(symbols_[-1])
+  values <- eval(substitute(expr), enclos = e)
+   
+  # x::xs %<~% 1:5
+  # x::xs %<~% list(1,2,3,4,5)
+  if (symbols_[[1]] == "::" && length(symbols_) == 3) {
+    assign(var.chars[[1]], values[[1]], envir = e)
+    assign(var.chars[[2]], values[-1], envir = e)
+    return(invisible())
+  }
+  
+  # recycling is not allowed.
+  if (length(values) != length(var.chars))
+    stop("The length of answers and variables must be the same.")
+  if (typeof(values) != "list")
+    stop("Only list can be assigned to multiple variables.")
+    
+  for(i in seq_along(var.chars)) {
+    assign(var.chars[[i]], values[[i]], envir = e)
+  }
+}
+
+# {x; y; z} %<~% {
+#   a <- 1 + 2
+#   b <- 3 * 4
+#   c <- 5 / 6
+#   list(a, b, c)
+# }
+# rm(x, y, z)
+
+# c(x, y, z) %<~% {
+#   a <- 1 + 2
+#   b <- 3 * 4
+#   c <- 5 / 6
+#   list(a, b, c)
+# }
+# rm(x, y, z)
+
+# counter <- function(i) {
+#   force(i)
+#   list(
+#     increase = function(x = 1) {i <<- i + x; i},
+#     decrease = function(x = 1) {i <<- i - x; i}
+#   )
+# }
+
+# {inc; dec} %<~% counter(10)
+# inc()
+# inc()
+# dec()
+# dec(5)
+# rm(inc, dec, counter)
+
+# x::xs %<~% 1:5
+# rm(x, xs)
+# x::xs %<~% list(1,2,3,4,5)
+# rm(x, xs)
+
+
+### memory inspection:
+## http://stackoverflow.com/questions/10912729/r-object-identity/10913296#10913296
+## http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2010-March/000508.html
+## http://tolstoy.newcastle.edu.au/R/e16/devel/11/11/0263.html
+
+## my examples are in https://gist.github.com/TobCap/6792752
+## A promise is copied so dot-dot-dot is suitable.
+## inspect(arg, depth (recursive display) or NULL, max display items (more than one))  
+## inspect(.GlobalEnv, 3, 30)
+## inspect(.GlobalEnv, NULL, NULL) 
+inspect <- function(...) .Internal(inspect(...))
+
+## address() is already used in package "pryr" and "data.table"
+address2 <- function(...){
+  capture.output.cat <- function (...) {
+    # simplify body(capture.output) and substitute `cat` for `print`
+    rval <- NULL
+    file <- textConnection("rval", "w", local = TRUE)
+    sink(file)
+    on.exit({sink(); close(file)})
+    cat(eval(substitute(list(...))[[2]],  parent.frame())[[1]])
+    substring(strsplit(rval[[1]], " ")[[1]][[1]], 2)
+  }
+  # capture.output(inspect(...))
+  # It works well seemingly, but after calling this function more than two times,
+  # the result of inspect(x) indicates that NAM is converted from 1 to 2.
+  capture.output.cat(inspect(...))
 }
