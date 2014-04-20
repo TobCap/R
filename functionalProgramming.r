@@ -228,13 +228,8 @@ cr <- function(f, e = parent.frame()){
 # > curry(call)("rnorm")(5)(100)
 # エラー:  関数でないものを適用しようとしました 
 
-<<<<<<< HEAD
-
-λ <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
-=======
 ### curried function creator
 `λ` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
->>>>>>> b75207152343fb0a02f08ee6f135e6d209759a47
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
@@ -263,16 +258,6 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-<<<<<<< HEAD
-flip <- function(.fun, l = 1, r = 2, env = parent.frame()){
-  args.orig <- formals(args(match.fun(.fun)))
-  stopifnot(1 < r && l < length(args.orig) && l < r)
-  .fun.name <- as.character(substitute(.fun))
-  out.fun <- function() {
-    args. <- as.pairlist(lapply(match.call(), force)[-1])
-    args.[c(r, l)] <- args.[c(l, r)]
-    do.call(.fun.name, args., env)
-=======
 flip <- function(fun, l = 1, r = 2, env = parent.frame()){
   args.orig <- formals(args(match.fun(fun)))
   stopifnot(1 < r, l < length(args.orig), l < r)
@@ -281,7 +266,6 @@ flip <- function(fun, l = 1, r = 2, env = parent.frame()){
     args_ <- as.vector(match.call(), "list")[-1]
     args_[c(r, l)] <- args_[c(l, r)]
     do.call(fun.name, args_, envir = env)
->>>>>>> b75207152343fb0a02f08ee6f135e6d209759a47
   }
   formals(out.fun) <- args.orig
   out.fun
@@ -297,18 +281,10 @@ flip <- function(fun, l = 1, r = 2, env = parent.frame()){
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
-<<<<<<< HEAD
-# > Dx <- curry(flip(D))("x")
-# > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
-# 10 * (9 * (8 * (7 * (6 * x^5))))
-
-=======
 # > Dx <- curry(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
 
-
->>>>>>> b75207152343fb0a02f08ee6f135e6d209759a47
 ###
 # fun compares vecter elements next to each other
 .compare <- function(fun, vals){
