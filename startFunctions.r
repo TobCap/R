@@ -1,3 +1,9 @@
+library2 <- function(package.name, ...) {
+  stopifnot(try(is.character(package.name)))
+  if (!package.name %in% .packages(TRUE)) install.packages(package.name)
+  library(package.name, character.only = TRUE, ...)
+}
+
 load.packages <- (function(){
   if(!.Platform$OS.type == "windows")
     message("I don't check if it works on mac or linux.")
