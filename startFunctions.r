@@ -1,6 +1,6 @@
 library2 <- function(package.name, ...) {
   stopifnot(try(is.character(package.name)))
-  if (!package.name %in% .packages(TRUE)) install.packages(package.name)
+  if (!package.name %in% .packages(TRUE)) utils:::install.packages(package.name)
   library(package.name, character.only = TRUE, ...)
 }
 
