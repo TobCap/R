@@ -410,6 +410,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 # zip.(1:3, 4:6, 7:9)
 # zip..(1:3, letters[1:3])
 
+### other binary operators
 ## http://neue.cc/2011/02/14_302.html
 "%|>%" <- function(x, f) f(x)
 "%<|%" <- function(f, x) f(x)
@@ -430,17 +431,49 @@ compose. <- function(f, g) function(x) f(g(x))
 # f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
 
 ### Pipeline like operator
-### Left value can be passed by ".." just like scala's underscore "_".
-### I use ".."; "." is already used in "package:plyr".
-### It is not fast but easy to read and understand because of using fewer parentheses.
-"%|%" <- function(lhs, rhs){
-  ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
-  if (is.function(ans))
-    ans(lhs)  
-  else
-    ans
-}
+## Left value can be passed by ".." just like scala's underscore "_".
+## I use ".."; "." is already used in "package:plyr".
+## It is not fast but easy to read and understand because of using fewer parentheses.
 
+`%|%` <- (function() {  
+  replace_two_dots <- function(expr, expr_new){
+    cnv <- function(x){
+      if (!is.recursive(x)) {
+        if (is.symbol(x) && x == quote(..)) expr_new
+        else x }
+      else if (x[[1]] == "%|%") {
+        x }
+      else if (is.pairlist(x)) {
+        as.pairlist(lapply(x, cnv)) }
+      else {
+        as.call(lapply(x, cnv)) } }
+    cnv(expr)
+  }
+  
+  function(lhs, rhs) {
+    rhs_expr <- substitute(rhs)
+    if ((length(rhs_expr) == 1 && !is.recursive(rhs_expr)) || rhs_expr[[1]] == "function") {
+      return(rhs(lhs)) }
+    
+    p <- parent.frame()
+    rhs_eval <- replace_two_dots(rhs_expr, substitute(lhs))
+    ans <- eval(rhs_eval, envir = p, enclos = p)
+    
+    if (is.function(ans)) ans(lhs)
+    else ans
+  }
+})()
+
+## The old version is simpler but a left side is evaluated before passing it into a right side function
+# "%|%" <- function(lhs, rhs){
+#   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
+#   if (is.function(ans))
+#     ans(lhs)  
+#   else
+#     ans
+# }
+
+## examples
 # > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
 # [1]  0  1  4  9 16
 # > 1:5 %|% (..-1) %|% (..^2)
@@ -471,16 +504,44 @@ compose. <- function(f, g) function(x) f(g(x))
 #   replicate(n=1000, ..()) %|% 
 #   matplot(.., type = "l", ann = FALSE)
 
+# library(magrittr)
+# library(microbenchmark)
+#
+# microbenchmark(
+# "%>%" =   
+#   airquality %>% 
+#     transform(Date = paste(1973, Month, Day, sep = "-") %>% as.Date) %>% 
+#     aggregate(. ~ Date %>% format("%W"), ., mean) %>%
+#     subset(Wind > 12, c(Ozone, Solar.R, Wind))
+# ,
+# "%|%" =  
+#   airquality %|% 
+#     transform(.., Date = paste(1973, Month, Day, sep = "-") %|% as.Date) %|% 
+#     aggregate(. ~ Date %|% format(.., "%W"), .., mean) %|%
+#     subset(.., Wind > 12, c(Ozone, Solar.R, Wind))
+# )
+## Unit: milliseconds
+##  expr      min       lq   median       uq      max neval
+##   %>% 10.02374 10.19620 10.28466 10.53446 12.14736   100
+##   %|% 14.99472 15.07445 15.18651 15.36291 50.14812   100
+
+##                  %|%                 %>%
+## receiving symbol ..                  .
+## speed            relatively slower   relatively faster
+## syntax           R like              omit first argument
+## evaluation       lazy                eager
+
+## date is passed
 `<--` <- function(...){
   Reduce("%<|%", list(...), right = TRUE)
 }
 `-->` <- function(...){
   Reduce("%|>%", list(...), right = FALSE)
 }
- 
 # > `-->`(1:5, f.(x, x-1), f.(x, x*10))
 # [1]  0 10 20 30 40
  
+## functions are composed 
 `<<--` <- function(...){
     Funcall <- function(f, ...) f(...)
     function(x) Reduce(Funcall, list(...), x, right = TRUE)
