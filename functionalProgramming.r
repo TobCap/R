@@ -20,6 +20,7 @@ is.formals <- function(x) {
   is.pairlist(x) && length(x) == sum(nzchar(names(x)))
 }
 
+### sugar-syntax for lambda
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env = parent.frame()){
   # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...` 
@@ -436,8 +437,6 @@ compose. <- function(f, g) function(x) f(g(x))
   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
   if (is.function(ans))
     ans(lhs)  
-  else if (all(typeof(ans)=="logical", length(lhs)==length(ans)))
-    lhs[ans]
   else
     ans
 }
@@ -452,23 +451,25 @@ compose. <- function(f, g) function(x) f(g(x))
 ### same result
 # > Filter(function(x) x%%2==0, 1:5)
 # [1] 2 4
-# > 1:5 %|% (..%%2==0)
+# > 1:5 %|% ..[..%%2==0]
 # [1] 2 4
 
-# With %|% operator, right assignment is an intuitive way, I feel, to define a variable
-# > 1:10 %|% (..%%2==0) %|% ..^2 -> x
+# With %|% operator, I think, right assignment is an intuitive way to define a variable
+# > 1:10 %|% ..[..%%2==0] %|% ..^2 -> x
 # > x
 # [1]   4  16  36  64 100
 
-### plot brownian motion in one liner
-# > f.({mu<-0;m<-252;sigma<-0.2/sqrt(m) ;rnorm(m, mu-sigma^2/2, sigma) %|% cumsum %|% c(0, ..)}) %|% replicate(n=1000, ..()) %|% matplot(.., type = "l", ann = FALSE)
-
 ### set break lines after typing `%|%`
-# f.({mu<-0;m<-252;sigma<-0.2/sqrt(m) ;rnorm(m, mu-sigma^2/2, sigma) %|% 
-#   cumsum %|% 
-#   c(0, ..)}) %|% 
-# replicate(n=1000, ..()) %|% 
-# matplot(.., type = "l", ann = FALSE);
+# (function() {
+#   mu <- 0
+#   m <- 252
+#   sigma <- 0.2 / sqrt(m)
+#   rnorm(m, mu - sigma ^ 2 / 2, sigma) %|% 
+#     cumsum %|% 
+#     c(0, ..)
+# }) %|% 
+#   replicate(n=1000, ..()) %|% 
+#   matplot(.., type = "l", ann = FALSE)
 
 `<--` <- function(...){
   Reduce("%<|%", list(...), right = TRUE)
@@ -498,7 +499,7 @@ tap <- function(x, fun = identity) {
   print(fun(x))
   x
 }
-# > 1:10 %|% (..%%2==0) %|% tap %|% ..^2
+# > 1:10 %|% ..[..%%2==0] %|% tap %|% ..^2
 # [1]  2  4  6  8 10
 # [1]   4  16  36  64 100
 
