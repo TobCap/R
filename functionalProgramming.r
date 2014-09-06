@@ -464,7 +464,7 @@ compose. <- function(f, g) function(x) f(g(x))
   }
 })()
 
-## The old version is simpler but a left side is evaluated before passing it into a right side function
+## The old version was simpler but a left side is evaluated before passing it into a right side function
 # "%|%" <- function(lhs, rhs){
 #   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
 #   if (is.function(ans))
@@ -530,6 +530,7 @@ compose. <- function(f, g) function(x) f(g(x))
 ## speed            relatively slower   relatively faster
 ## syntax           R like              omit first argument
 ## evaluation       lazy                eager
+## addOne           (..+1)              `+`(1) or add(1)
 
 ## date is passed
 `<--` <- function(...){
