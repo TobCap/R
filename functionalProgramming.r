@@ -655,9 +655,6 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # [1] 5
 ## see the chart in http://mitpress.mit.edu/sicp/full-text/sicp/book/node16.html
 
-### memoizer() needs to directly take memoizing function.
-### In using %>>%, memoizer() needs to be just right-side of memoizing function.
-
 # > fibmemo <- fix.(tracer %>>% fib.maker %>>% memoizer)
 ### or fibmemo <- fix.(function(x) memoizer(fib.maker(tracer(x))))
 # fibmemo(5)
