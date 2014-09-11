@@ -582,7 +582,7 @@ tap <- function(x, fun = identity) {
 
 ### see the calculation processes at https://gist.github.com/TobCap/6668817
 ### fixed-point combinator
-### I tried to check four types of fixed-point combinator function and blow is the simplest and fastest
+### R can write very simply
 fix. <- function(g) f <- g(f)
 
 ### http://en.wikipedia.org/wiki/Fixed-point_combinator
@@ -612,7 +612,7 @@ fix. <- function(g) f <- g(f)
 ### http://www.kmonos.net/wlog/52.php
 ### http://d.hatena.ne.jp/r-west/20090422/1240400570
 
-# The function name is intented to avoid a conflict with library("memoise")
+# avoid to conflict with `memoise` that is already taken in library("memoise")
 memoizer <- function(f) {
   .memo <- new.env()
   function(...){
