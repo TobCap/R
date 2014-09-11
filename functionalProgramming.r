@@ -535,7 +535,7 @@ compose. <- function(f, g) function(x) f(g(x))
 
 
 
-## date is passed
+## date passing
 `<--` <- function(...){
   Reduce("%<|%", list(...), right = TRUE)
 }
@@ -545,7 +545,7 @@ compose. <- function(f, g) function(x) f(g(x))
 # > `-->`(1:5, f.(x, x-1), f.(x, x*10))
 # [1]  0 10 20 30 40
  
-## functions are composed 
+## composing one more functions
 `<<--` <- function(...){
     Funcall <- function(f, ...) f(...)
     function(x) Reduce(Funcall, list(...), x, right = TRUE)
@@ -580,7 +580,7 @@ tap <- function(x, fun = identity) {
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
-### see its calculation processes in https://gist.github.com/TobCap/6668817
+### see the calculation processes at https://gist.github.com/TobCap/6668817
 ### fixed-point combinator
 ### I tried to check four types of fixed-point combinator function and blow is the simplest and fastest
 fix. <- function(g) f <- g(f)
@@ -688,7 +688,7 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # 0 1 1 2 3 5 8 
 
 
-### all results are the same
+### the same semantics
 # fix.(tracer %>>% fib.maker %>>% memoizer)(5)
 # (tracer %>>% fib.maker %>>% memoizer %|>% fix.)(5)
 # {tracer %>>% fib.maker %>>% memoizer %|>% fix.}(5)
