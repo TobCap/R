@@ -410,25 +410,6 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 # zip.(1:3, 4:6, 7:9)
 # zip..(1:3, letters[1:3])
 
-### other binary operators
-## http://neue.cc/2011/02/14_302.html
-"%|>%" <- function(x, f) f(x)
-"%<|%" <- function(f, x) f(x)
-
-## functional composition
-"%>>%" <- function(f, g) function(x) g(f(x))
-"%<<%" <- function(f, g) function(x) f(g(x))
-compose. <- function(f, g) function(x) f(g(x))
-# f1 <- f.(x, {cat("f1(x = ", x, ") -> ", sep = ""); x + 1})
-# f2 <- f.(x, {cat("f2(x = ", x, ") -> ", sep = ""); x * 2})
-# f3 <- f.(x, {cat("f3(x = ", x, ") -> ", sep = ""); x / 3})
-# f4 <- f1 %>>% f2 %>>% f3
-# f5 <- f1 %<<% f2 %<<% f3
-
-# > f4(1)
-# f1(x = 1) -> f2(x = 2) -> f3(x = 4) -> [1] 1.333333
-# > f5(1)
-# f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
 
 ### Pipeline like operator
 ## Left value can be passed by ".." just like scala's underscore "_".
@@ -463,6 +444,15 @@ compose. <- function(f, g) function(x) f(g(x))
     else ans
   }
 })()
+### other binary operators
+## http://neue.cc/2011/02/14_302.html
+"%|>%" <- function(x, f) f(x)
+"%<|%" <- function(f, x) f(x)
+
+## functional composition
+"%>>%" <- function(f, g) function(x) g(f(x))
+"%<<%" <- function(f, g) function(x) f(g(x))
+compose. <- function(f, g) function(x) f(g(x))
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
 # "%|%" <- function(lhs, rhs){
@@ -528,9 +518,22 @@ compose. <- function(f, g) function(x) f(g(x))
 ##                  %|%                 %>%
 ## receiving symbol ..                  .
 ## speed            relatively slower   relatively faster
-## syntax           R like              omit first argument
+## syntax           R like              can omit first argument
 ## evaluation       lazy                eager
 ## addOne           (..+1)              `+`(1) or add(1)
+
+# f1 <- f.(x, {cat("f1(x = ", x, ") -> ", sep = ""); x + 1})
+# f2 <- f.(x, {cat("f2(x = ", x, ") -> ", sep = ""); x * 2})
+# f3 <- f.(x, {cat("f3(x = ", x, ") -> ", sep = ""); x / 3})
+# f4 <- f1 %>>% f2 %>>% f3
+# f5 <- f1 %<<% f2 %<<% f3
+
+# > f4(1)
+# f1(x = 1) -> f2(x = 2) -> f3(x = 4) -> [1] 1.333333
+# > f5(1)
+# f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
+
+
 
 ## date is passed
 `<--` <- function(...){
@@ -609,58 +612,21 @@ fix. <- function(g) f <- g(f)
 ### http://www.kmonos.net/wlog/52.php
 ### http://d.hatena.ne.jp/r-west/20090422/1240400570
 
-# If you want to save .memo in a arbitrary environment, set a option like
-# options(storing.env = "your_arbitrary_env_name").
-# The naming is intented to avoid a conflict with library("memoise")
-memoizer <- function(f, envir, reset = FALSE){
-  if (!missing(reset) && !missing(f))
-    stop("if you simply want to reset, type as memoizer(reset = TRUE)")
-  
-  if (missing(envir)) {
-    e.name <- getOption("storing.env", default = ".GlobalEnv")
-    envir <- 
-      if (e.name == ".GlobalEnv") .GlobalEnv
-      else if (e.name %in% search()) as.environment(e.name)
-      else attach(NULL, name = e.name)
-  } else {
-    stopifnot(is.environment(envir))
-  }
-  
-  .memo <- 
-    if (exists(".memo", envir = envir, mode = "environment", inherits = FALSE))
-      get(".memo", envir = envir, inherits = FALSE)
-    else
-      assign(".memo", new.env(parent = emptyenv()), envir = envir)
-  
-  if (reset) return(invisible(
-    eapply(.memo, function(x) rm(list = ls(x, all = TRUE), envir = x)) ))
-  
-  fun.names <- paste0(deparse(f), collapse="")
-  if (!exists(fun.names, envir = .memo)) 
-    assign(fun.names, new.env(parent = emptyenv()), envir = .memo)
-  
+# The function name is intented to avoid a conflict with library("memoise")
+memoizer <- function(f) {
+  .memo <- new.env()
   function(...){
-    key <- paste0(list(...), collapse=",")
-    if (is.null(.memo[[fun.names]][[key]]))
-      .memo[[fun.names]][[key]] <- f(...)
-    .memo[[fun.names]][[key]]
+    key <- paste(list(...), collapse=",")
+    if (is.null(.memo[[key]])) .memo[[key]] <- f(...)
+    .memo[[key]]
   }
 }
-
-# previous simple version
-# memoizer <- function(f) {
-  # function(...){
-    # key <- paste(list(...), collapse=",")
-    # if (is.null(.memo[[key]])) .memo[[key]] <- f(...)
-    # .memo[[key]]
-  # }
-# }
 
 tracer <- function(f) {
   num <- 0
   function(...){
     key <- paste(list(...), collapse=",")
-    num <<- num + 1 # key‚æ‚è‰º‚Å‚È‚¢‚Æ‚¢‚¯‚È‚¢ •›ì—p‚Ì•¾ŠQ
+    num <<- num + 1 
     suffix <- if (num <= 3) switch(num, "st", "nd", "rd") else "th"
     cat(num, suffix, " call with argument: ", key, "\n", sep = "")
     f(...)
@@ -688,13 +654,13 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # 14th call with argument: 1
 # [1] 5
 ## see the chart in http://mitpress.mit.edu/sicp/full-text/sicp/book/node16.html
-## and compare it with above outputs.
 
 ### memoizer() needs to directly take memoizing function.
 ### In using %>>%, memoizer() needs to be just right-side of memoizing function.
 
-# > fix.(tracer %>>% fib.maker %>>% memoizer)(5)
-### or fix.(function(x) memoizer(fib.maker(tracer(x))))(5)
+# > fibmemo <- fix.(tracer %>>% fib.maker %>>% memoizer)
+### or fibmemo <- fix.(function(x) memoizer(fib.maker(tracer(x))))
+# fibmemo(5)
 # 1st call with argument: 4
 # 2nd call with argument: 3
 # 3rd call with argument: 2
@@ -705,50 +671,29 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # 8th call with argument: 3
 # [1] 5
 #
-# > fix.(tracer %>>% fib.maker %>>% memoizer)(5)
+# > fibmemo(5)
 # [1] 5
 #
 ### only new arguments are passed to calculation
-# > fix.(tracer %>>% fib.maker %>>% memoizer)(6)
-# 1st call with argument: 5
-# 2nd call with argument: 4
+# > fibmemo(6)
+# 9th call with argument: 5
+# 10th call with argument: 4
 # [1] 8
 #
-# > fix.(tracer %>>% fib.maker %>>% memoizer)(6)
+# > fibmemo(6)
 # [1] 8
+#
+# > unlist(eapply(environment(fibmemo)$.memo, identity))
+# 0 1 2 3 4 5 6 
+# 0 1 1 2 3 5 8 
+
 
 ### all results are the same
-# fix.(tracer %>>% fib.maker %>>% memoizer )(5)
+# fix.(tracer %>>% fib.maker %>>% memoizer)(5)
 # (tracer %>>% fib.maker %>>% memoizer %|>% fix.)(5)
 # {tracer %>>% fib.maker %>>% memoizer %|>% fix.}(5)
 # 5 %|>% {tracer %>>% fib.maker %>>% memoizer %|>% fix.}
 # tracer %>>% fib.maker %>>% memoizer %|>% fix. %<|% 5
-
-### memoizer(reset = TRUE) resets objects in `.memo`.
-# > memoizer(reset = TRUE) 
-# > eapply(.memo, ls)
-# $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
-# character(0)
-
-# > fix.(tracer %>>% fib.maker %>>% memoizer)(5)
-# 1st call with argument: 4
-# 2nd call with argument: 3
-# 3rd call with argument: 2
-# 4th call with argument: 1
-# 5th call with argument: 0
-# 6th call with argument: 1
-# 7th call with argument: 2
-# 8th call with argument: 3
-# [1] 5
-
-# > eapply(.memo, ls)
-# $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
-# [1] "0" "1" "2" "3" "4" "5" "6"
-
-# > eapply(.memo, sapply, identity)
-# $`function (x) if (x <= 1) x else f(x - 1) + f(x - 2)`
-# 0 1 2 3 4 5 6 
-# 0 1 1 2 3 5 8 
 
 ### memoizer() can apply to a simple recursive function.
 # fib2 <- memoizer(function(x) if(x <= 1) x else fib2(x - 1) + fib2(x - 2))
@@ -757,7 +702,7 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # [1] 1.394232e+104
 
 # install.packages("gmp"); library("gmp")
-# > fib3 <- memoizer(function(x) if(x<=1) as.bigz(x) else fib3(x-1) + fib3(x-2))
+# > fib3 <- memoizer(function(x) if(x <= 1) as.bigz(x) else fib3(x - 1) + fib3(x - 2))
 # > fib3(500)
 # Big Integer ('bigz') :
 # [1] 139423224561697880139724382870407283950070256587697307264108962948325571622863290691557658876222521294125
@@ -765,13 +710,12 @@ fib.maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## http://d.hatena.ne.jp/einblicker/20110108/1294448477
 ## http://d.hatena.ne.jp/einblicker/20110113/1294920315
 
-## U Combinator 
+### U Combinator 
+## http://www.ucombinator.org/
 ## U <- function(f) f(f)
 ## fib.u <- function(f) function(n) if(n <= 1) n else f(f)(n - 1)  + f(f)(n - 2)
 ## U(fib.u)(10)
-## U(fib.u %>>% memoizer)(100)
-
-
+### Is there a memoise function for U combinator?
 
 ### language object operater
 ## promise.tracker can track promise's original symbol
