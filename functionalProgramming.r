@@ -276,9 +276,9 @@ cr <- function(f) {
 }
 
 ### curried function creator
-`兩` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
-### Address of 兩 (lambda) in Unicode is U+03BB or \u03BB
-# 兩(g, x, g(g(x)))(兩(y, y+1))(5)
+`位` <- l. <- function(...) curry(f.(..., env = parent.frame()), env = parent.frame())
+### Address of 位 (lambda) in Unicode is U+03BB or \u03BB
+# 位(g, x, g(g(x)))(位(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
 # l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
@@ -595,8 +595,8 @@ fix. <- function(g) f <- g(f)
 
 ### g = Y(f), f(g) = g; f = Y(g), g(f) = f
 ### Y g = g(Y g)
-### Y = 兩f.(兩x.f (x x)) (兩x.f (x x))
-### Z = 兩f.(兩x.f (兩y. x x y)) (兩x.f (兩y. x x y))
+### Y = 位f.(位x.f (x x)) (位x.f (x x))
+### Z = 位f.(位x.f (位y. x x y)) (位x.f (位y. x x y))
 
 # > mult.maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
 # > microbenchmark(fix0(mult.maker)(100),fix1(mult.maker)(100),fix2(mult.maker)(100), fix3(mult.maker)(100), fix4(mult.maker)(100))
