@@ -516,7 +516,21 @@ compose. <- function(f, g) function(x) f(g(x))
 
 # library(magrittr)
 # library(microbenchmark)
-#
+
+# > microbenchmark("%|%" = 1 %|% sum, "%>%" = 1 %>% sum)
+# Unit: microseconds
+#  expr     min      lq  median      uq     max neval
+#   %|%   9.363  10.254  13.374  14.266  58.845   100
+#   %>% 165.387 167.616 168.953 171.851 353.954   100
+
+# > microbenchmark(
+# +   "%|%" = 1 %|% sum(.., rm.na = TRUE),
+# +   "%>%" = 1 %>% sum(rm.na = TRUE))
+# Unit: microseconds
+#  expr     min       lq   median       uq     max neval
+#   %|% 162.266 198.5990 205.2845 210.4115 359.304   100
+#   %>% 269.255 337.2375 341.0270 347.9370 687.402   100
+
 # microbenchmark(
 # "%>%" =   
 #   airquality %>% 
@@ -537,7 +551,7 @@ compose. <- function(f, g) function(x) f(g(x))
 
 ##                  %|%                 %>%
 ## receiving symbol ..                  .
-## speed            relatively slower   relatively faster
+## speed                  depends on its situation
 ## syntax           R like              can omit first argument
 ## evaluation       lazy                eager
 ## addOne           (..+1)              `+`(1) or add(1)
