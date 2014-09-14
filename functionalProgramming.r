@@ -415,7 +415,6 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 ## Left value can be passed by ".." just like scala's underscore "_".
 ## I use ".."; "." is already used in "package:plyr".
 ## It is not fast but easy to read and understand because of using fewer parentheses.
-
 `%|%` <- (function() {  
   replace_two_dots <- function(expr, expr_new){
     cnv <- function(x){
@@ -431,19 +430,40 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
     cnv(expr)
   }
   
-  function(lhs, rhs) {
-    rhs_expr <- substitute(rhs)
-    if ((length(rhs_expr) == 1 && !is.recursive(rhs_expr)) || rhs_expr[[1]] == "function") {
-      return(rhs(lhs)) }
+  strip_parenthesis <- function(expr) {
+    if (length(expr) != 2 || (expr[[1]] != "(" && expr[[1]] != "{")) {
+      expr }
+    else {
+      strip_parenthesis(expr[[2]])
+    }
+  }
+  
+  dot_pos <- function(expr) {
+    which(
+      vapply(expr
+      , function(x) paste0(as.character(x), collapse = "") == ".."
+      , logical(1)
+      , USE.NAMES = FALSE))
+  }
+  
+  function(lhs, rhs, p = parent.frame()) {
+    # rhs_expr <- substitute(rhs)
+    rhs_expr <- strip_parenthesis(substitute(rhs))
     
-    p <- parent.frame()
-    rhs_eval <- replace_two_dots(rhs_expr, substitute(lhs))
-    ans <- eval(rhs_eval, envir = p, enclos = p)
-    
-    if (is.function(ans)) ans(lhs)
-    else ans
+    if (
+      (length(rhs_expr) == 1 && is.symbol(rhs_expr))
+      || rhs_expr[[1]] == "function"
+      || length(dot_pos(rhs_expr)) == 0
+      ) {
+      # eval(rhs_expr, envir = p, enclos = p)(lhs) }
+      rhs(lhs) }
+    else {
+      ## two_dots pattern
+      rhs_expr_mod <- replace_two_dots(rhs_expr, substitute(lhs))
+      eval(rhs_expr_mod, envir = p, enclos = p) }
   }
 })()
+
 ### other binary operators
 ## http://neue.cc/2011/02/14_302.html
 "%|>%" <- function(x, f) f(x)
