@@ -441,8 +441,9 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
   dot_pos <- function(expr) {
     which(
       vapply(expr
-      , function(x) paste0(as.character(x), collapse = "") == ".."
+      , identical
       , logical(1)
+      , quote(..)
       , USE.NAMES = FALSE))
   }
   

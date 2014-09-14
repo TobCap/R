@@ -5,8 +5,9 @@ unpipe <- function(expr) {
     
     dot_pos <- which(
       vapply(rhs
-      , function(x) paste0(as.character(x), collapse = "") == "."
+      , identical
       , logical(1)
+      , quote(.)
       , USE.NAMES = FALSE))
       
     if (any(all.names(rhs) == "%>%")) rhs <- decomp(rhs)
