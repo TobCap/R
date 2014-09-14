@@ -419,7 +419,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
   replace_two_dots <- function(expr, expr_new){
     cnv <- function(x){
       if (!is.recursive(x)) {
-        if (is.symbol(x) && x == quote(..)) expr_new
+        if (is.symbol(x) && identical(x, quote(..))) expr_new
         else x }
       else if (x[[1]] == "%|%") {
         x }
@@ -434,15 +434,14 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
     if (length(expr) != 2 || (expr[[1]] != "(" && expr[[1]] != "{")) {
       expr }
     else {
-      strip_parenthesis(expr[[2]])
-    }
+      strip_parenthesis(expr[[2]]) } 
   }
   
   dot_pos <- function(expr) {
     which(
       vapply(expr
       , identical
-      , logical(1)
+      , FALSE # logical(1)
       , quote(..)
       , USE.NAMES = FALSE))
   }
