@@ -305,17 +305,33 @@ uncurry <- function(fun){
 # [1] 6
 
 ###
-flip <- function(fun, l = 1, r = 2, env = parent.frame()){
-  args.orig <- formals(args(match.fun(fun)))
+## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
+flip <- function(fun, l = 1, r = 2, .env = parent.frame()) {
+  args.new <- args.orig <- formals(args(match.fun(fun)))
+  if (is.null(args.orig)) stop("The function where args(f) == NULL cannot be applied to flip().")
+  names(args.new)[c(r, l)] <- names(args.orig)[c(l, r)]
   stopifnot(1 < r, l < length(args.orig), l < r)
-  fun.name <- as.character(substitute(fun))
-  out.fun <- function() {
-    args_ <- as.vector(match.call(), "list")[-1]
-    args_[c(r, l)] <- args_[c(l, r)]
-    do.call(fun.name, args_, envir = env)
+  fun.sym <- substitute(fun)
+  
+  if(typeof(fun) == "closure") {
+    eval(call("function", args.new, body(fun)), environment(fun), .env)
+  } else { ## special & builtin
+    # Is there a better idea?
+    body_ <- quote({
+      syms <- lapply(names(args.orig), as.symbol)
+      syms.of.syms <- lapply(syms,
+        function(.x)
+          eval(substitute(substitute(.e), list(.e = .x)), parent.frame(2)) )
+      eval(as.call(c(fun.sym, syms.of.syms)), environment(fun), .env)
+    })
+    eval(call("function", args.new, body_), environment(), environment(fun))
   }
-  formals(out.fun) <- args.orig
-  out.fun
+}
+
+flip.cr <- function(fun, .env = parent.frame()) {
+  arg1 <- formals(args(fun))
+  arg2 <- body(fun)[[2]]
+  eval(call("function", arg2, call("function", arg1, body(fun)[[3]])), environment(fun), .env)
 }
 
 ### examples
@@ -334,6 +350,9 @@ flip <- function(fun, l = 1, r = 2, env = parent.frame()){
 # > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
+
+# > flip.cr(cr(D))("x")(quote(x^10))
+# 10 * x^9
 
 ###
 # fun compares vecter elements next to each other
@@ -524,8 +543,8 @@ compose. <- function(f, g) function(x) f(g(x))
 #   %>% 165.387 167.616 168.953 171.851 353.954   100
 
 # > microbenchmark(
-# +   "%|%" = 1 %|% sum(.., rm.na = TRUE),
-# +   "%>%" = 1 %>% sum(rm.na = TRUE))
+#     "%|%" = 1 %|% sum(.., rm.na = TRUE),
+#     "%>%" = 1 %>% sum(rm.na = TRUE))
 # Unit: microseconds
 #  expr     min       lq   median       uq     max neval
 #   %|% 162.266 198.5990 205.2845 210.4115 359.304   100
@@ -611,6 +630,7 @@ tap <- function(x, fun = identity) {
 #
 ### code flows from left to right; no need to use round bracket!
 ### http://yuroyoro.hatenablog.com/category/%E9%96%A2%E6%95%B0%E5%9E%8B%E8%A8%80%E8%AA%9E
+### http://yuroyoro.hatenablog.com/entry/20120203/1328248662
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
