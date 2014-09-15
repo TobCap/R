@@ -308,8 +308,9 @@ uncurry <- function(fun){
 ## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
 flip <- function(fun, l = 1, r = 2, .env = parent.frame()) {
   args.new <- args.orig <- formals(args(match.fun(fun)))
-  stopifnot(1 < r, l < length(args.orig), l < r)
+  if (is.null(args.orig)) stop("The function where args(f) == NULL cannot be applied to flip().")
   names(args.new)[c(r, l)] <- names(args.orig)[c(l, r)]
+  stopifnot(1 < r, l < length(args.orig), l < r)
   fun.sym <- substitute(fun)
   
   if(typeof(fun) == "closure") {
@@ -326,20 +327,6 @@ flip <- function(fun, l = 1, r = 2, .env = parent.frame()) {
     eval(call("function", args.new, body_), environment(), environment(fun))
   }
 }
-
-flip2 <- function(fun, l = 1, r = 2, env = parent.frame()){
-  args.orig <- formals(args(match.fun(fun)))
-  stopifnot(1 < r, l < length(args.orig), l < r)
-  fun.name <- as.character(substitute(fun))
-  out.fun <- function() {
-    args_ <- as.vector(match.call(), "list")[-1]
-    args_[c(r, l)] <- args_[c(l, r)]
-    do.call(fun.name, args_, envir = env)
-  }
-  formals(out.fun) <- args.orig
-  out.fun
-}
-
 
 flip.cr <- function(fun, .env = parent.frame()) {
   arg1 <- formals(args(fun))
