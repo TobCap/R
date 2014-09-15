@@ -1,7 +1,7 @@
 ### functional operators
 
 ## Auxiliary function
-as.formals <- function(x, value = list(quote(expr=))){
+as.formals <- function(x, value = list(quote(expr=))) {
   ## a faster version of tools:::as.alist.call
   if (!all(nzchar(x)))
     stop('Including "" or substitute() is invalid input.')
@@ -22,7 +22,7 @@ is.formals <- function(x) {
 
 ### sugar-syntax for lambda
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
-f. <- function(..., env = parent.frame()){
+f. <- function(..., env = parent.frame()) {
   # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...` 
   d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
   # need to be pairlist to return NULL when nothing is passed to `...`.
@@ -308,23 +308,22 @@ uncurry <- function(fun){
 ## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
 flip <- function(fun, l = 1, r = 2, .env = parent.frame()) {
   args.new <- args.orig <- formals(args(match.fun(fun)))
-  if (is.null(args.orig)) stop("The function where args(f) == NULL cannot be applied to flip().")
-  names(args.new)[c(r, l)] <- names(args.orig)[c(l, r)]
   stopifnot(1 < r, l < length(args.orig), l < r)
+  
+  names(args.new)[c(r, l)] <- names(args.orig)[c(l, r)]
+  args.new[c(r, l)] <- args.orig[c(l, r)]
+  
   fun.sym <- substitute(fun)
   
-  if(typeof(fun) == "closure") {
-    eval(call("function", args.new, body(fun)), environment(fun), .env)
+  if (typeof(fun) == "closure") {
+    eval(call("function", as.pairlist(args.new), body(fun)), environment(fun), .env)
   } else { ## special & builtin
-    # Is there a better idea?
     body_ <- quote({
-      syms <- lapply(names(args.orig), as.symbol)
-      syms.of.syms <- lapply(syms,
-        function(.x)
-          eval(substitute(substitute(.e), list(.e = .x)), parent.frame(2)) )
-      eval(as.call(c(fun.sym, syms.of.syms)), environment(fun), .env)
+      called <- match.call()
+      called[[1]] <- fun.sym
+      eval(called, environment(fun), .env)
     })
-    eval(call("function", args.new, body_), environment(), environment(fun))
+    eval(call("function", as.pairlist(args.new), body_), environment(), environment(fun))
   }
 }
 
@@ -356,7 +355,7 @@ flip.cr <- function(fun, .env = parent.frame()) {
 
 ###
 # fun compares vecter elements next to each other
-.compare <- function(fun, vals){
+.compare <- function(fun, vals) {
   out.fun <- function(vals){
     if (length(vals) == 1) TRUE
     else if (is.na(vals[[1]])) NA
@@ -366,7 +365,7 @@ flip.cr <- function(fun, .env = parent.frame()) {
   out.fun(vals)
 }
 
-.compare.vec <- function(fun, vals, type = c("all", "any")){
+.compare.vec <- function(fun, vals, type = c("all", "any")) {
   all.or.any <- match.fun(match.arg(type))
   all.or.any(match.fun(fun)(vals[-length(vals)], vals[-1]))
 }
@@ -393,7 +392,7 @@ flip.cr <- function(fun, .env = parent.frame()) {
 ###
 # avoiding conflict with utils::zip
 # just using mapply()
-zip. <- function(..., FUN = list){
+zip. <- function(..., FUN = list) {
   dots <- list(...)
   args.seq <- seq_len(min(vapply(dots, length, 0)))
   args.new <- lapply(dots, function(x) x[args.seq])
@@ -435,7 +434,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 ## I use ".."; "." is already used in "package:plyr".
 ## It is not fast but easy to read and understand because of using fewer parentheses.
 `%|%` <- (function() {  
-  replace_two_dots <- function(expr, expr_new){
+  replace_two_dots <- function(expr, expr_new) {
     cnv <- function(x){
       if (!is.recursive(x)) {
         if (is.symbol(x) && identical(x, quote(..))) expr_new
@@ -807,12 +806,12 @@ length.recursive <- function(x) {
 
 # language replacement
 # see https://gist.github.com/TobCap/6348892
-replace.symbol <- function(expr, before, after){
+replace.symbol <- function(expr, before, after) {
   stopifnot(is.language(expr), is.symbol(before))
   eval(substitute(substitute(e, `names<-`(list(after), as.character(before))), list(e = expr)))
 }
 
-replace.call <- function(expr, before, after){
+replace.call <- function(expr, before, after) {
   stopifnot(is.language(expr))
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
