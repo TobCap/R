@@ -436,7 +436,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 `%|%` <- (function() {  
   replace_two_dots <- function(expr, expr_new) {
     cnv <- function(x){
-      if (!is.recursive(x)) {
+      if (length(x) <= 1) {
         if (is.symbol(x) && x == "..") expr_new
         else x }
       else if (x[[1]] == "%|%") { x }
