@@ -27,13 +27,13 @@ unpipe <- function(expr) {
   replace_dots <- function(expr, expr_new) {
     # not expand `~` because a dot is sometimes used for formula
     decomp(expr, 
-      function(x) (is.symbol(x) && !identical(x, quote(.))) || (is.call(x) && x[[1]] == "~"),
-      function(x) identical(x, quote(.)),
+      function(x) (is.symbol(x) && x != ".") || (is.call(x) && x[[1]] == "~"),
+      function(x) is.symbol(x) && x == ".", # faster than identical(x, quote(.))
       function(x) expr_new ) }
 
   decomp_pipe <- function(expr) {
     decomp(expr, 
-      function(x) length(x) == 1,
+      function(x) length(x) <= 1, # length(NULL) == 0
       function(x) length(x) == 3 && x[[1]] == "%>%",
       function(x) cnv(x) ) }
   
