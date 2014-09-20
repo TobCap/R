@@ -3,15 +3,15 @@ unpipe <- function(expr) {
     lhs <- x[[2]]
     rhs <- x[[3]]
     
+    if (any(all.names(rhs) == "%>%")) rhs <- decomp(rhs)
+    if (any(all.names(lhs) == "%>%")) lhs <- decomp(lhs)
+    
     dot_pos <- which(
       vapply(rhs
       , identical
-      , logical(1)
+      , FALSE
       , quote(.)
       , USE.NAMES = FALSE))
-      
-    if (any(all.names(rhs) == "%>%")) rhs <- decomp(rhs)
-    if (any(all.names(lhs) == "%>%")) lhs <- decomp(lhs)
     
     # main
     if (length(dot_pos) > 0) {
@@ -20,7 +20,7 @@ unpipe <- function(expr) {
     } else if (is.symbol(rhs) || rhs[[1]] == "function" || rhs[[1]] == "(") {
       as.call(c(rhs, lhs))
     } else if (is.call(rhs)) {
-      as.call(c(rhs[[1]], lhs, lapply(rhs[-1], decomp)))
+      as.call(c(rhs[[1]], lhs, lapply(rhs[-1], identity)))
     } else {
       stop("missing condition error")
     }
@@ -62,9 +62,9 @@ exam2 <- quote(
     print
 )
 (exam2_ <- unpipe(exam2))
-# print(subset(aggregate(. ~ format(Date, "%W"), transform(airquality, 
-#     Date = as.Date(paste(1973, Month, Day, sep = "-"))), mean), 
-#     Wind > 12, c(Ozone, Solar.R, Wind)))
+# windy.weeks <- print(subset(aggregate(. ~ format(Date, "%W"), 
+#     transform(airquality, Date = as.Date(paste(1973, Month, Day, 
+#         sep = "-"))), mean), Wind > 12, c(Ozone, Solar.R, Wind)))
 
 {eval(exam2); eval(exam2_)}
 #      Ozone  Solar.R     Wind
@@ -134,37 +134,43 @@ exam6 <- quote(
 # Current call has been altered, but please change your code.
 
 
-### Why is `%>%` faster than normal R's syntax in exam1 and exam2?
+### Evaluation of unpiped syntax is faster than using %>%, but some cases
+### are different.
+
 library("microbenchmark")
 microbenchmark(eval(exam1), eval(exam1_))
 # Unit: milliseconds
 #          expr      min       lq   median       uq      max neval
-#   eval(exam1) 10.56467 13.03922 14.90216 17.23116 34.82743   100
-#  eval(exam1_) 14.84287 17.21556 20.79522 26.90292 40.33020   100
+#   eval(exam1) 29.85074 30.59207 31.14484 32.10594 39.11404   100
+#  eval(exam1_) 40.96314 42.22023 42.65286 43.57629 47.32218   100
 
 microbenchmark(eval(exam2), eval(exam2_))
-# Unit: milliseconds
 #          expr      min       lq   median       uq      max neval
-#   eval(exam2) 12.04958 14.04402 16.25512 20.00774 35.67576   100
-#  eval(exam2_) 15.87620 18.25558 22.62740 28.08693 42.77801   100
+#   eval(exam2) 33.67598 34.96049 35.67641 36.92014 42.39765   100
+#  eval(exam2_) 44.45002 45.83840 46.53850 47.86536 90.73086   100
+
+# > library(profr)
+# > profr(eval(exam2))
+# > profr(eval(exam2_))
 
 microbenchmark(eval(exam3), eval(exam3_))
 # Unit: milliseconds
 #          expr      min       lq   median       uq      max neval
-#   eval(exam3) 1.708696 1.742130 1.763305 1.798745 3.300596   100
-#  eval(exam3_) 1.009259 1.041355 1.053169 1.066542 2.631472   100
+#   eval(exam3) 2.670220 2.799720 2.943707 3.160801 4.904468   100
+#  eval(exam3_) 1.278497 1.333773 1.401978 1.551982 3.118229   100
 
 microbenchmark(eval(exam4), eval(exam4_))
 # Error in eval(expr, envir, enclos) : attempt to apply non-function
 
 microbenchmark(eval(exam5), eval(exam5_))
 # Unit: microseconds
-#          expr     min       lq  median      uq     max neval
-#   eval(exam5) 176.978 221.3335 223.785 226.905 407.895   100
-#  eval(exam5_)  10.699  14.2650  14.712  17.386  81.134   100
+#          expr     min      lq   median       uq     max neval
+#   eval(exam5) 374.010 381.811 386.0460 399.8650 694.080   100
+#  eval(exam5_)  12.928  14.266  15.1575  20.2835  84.253   100
 
 microbenchmark(eval(exam6), eval(exam6_))
 # Unit: microseconds
-#          expr      min        lq    median        uq      max neval
-#   eval(exam6) 1725.190 1754.3890 2161.1685 2252.7775 3921.128   100
-#  eval(exam6_)  498.389  509.5335  624.1005  640.5945 2333.241   100
+#          expr      min        lq   median        uq      max neval
+#   eval(exam6) 3065.182 3155.0060 3243.939 3467.0520 5353.368   100
+#  eval(exam6_)  615.177  632.3395  645.490  660.4235  995.873   100
+# There were 50 or more warnings (use warnings() to see the first 50)
