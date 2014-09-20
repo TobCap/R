@@ -612,8 +612,8 @@ compose. <- function(f, g) function(x) f(g(x))
 
 ### invokes interceptor; the idea comes from underscore javascript.
 ### it easy to debug.
-tap <- function(x, fun = identity) {
-  print(fun(x))
+tap <- function(x, fun = print) {
+  fun(x)
   x
 }
 # > 1:10 %|% ..[..%%2==0] %|% tap %|% ..^2
