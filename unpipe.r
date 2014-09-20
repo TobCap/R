@@ -1,38 +1,43 @@
 unpipe <- function(expr) {
+    
   cnv <- function(x) {
     lhs <- x[[2]]
     rhs <- x[[3]]
     
-    if (any(all.names(rhs) == "%>%")) rhs <- decomp(rhs)
-    if (any(all.names(lhs) == "%>%")) lhs <- decomp(lhs)
-    
-    dot_pos <- which(
-      vapply(rhs
-      , identical
-      , FALSE
-      , quote(.)
-      , USE.NAMES = FALSE))
-    
+    if (any(all.names(rhs) == "%>%")) rhs <- decomp_pipe(rhs)
+    if (any(all.names(lhs) == "%>%")) lhs <- decomp_pipe(lhs)
+        
     # main
-    if (length(dot_pos) > 0) {
-      rhs[[dot_pos]] <- lhs
-      rhs
-    } else if (is.symbol(rhs) || rhs[[1]] == "function" || rhs[[1]] == "(") {
-      as.call(c(rhs, lhs))
-    } else if (is.call(rhs)) {
-      as.call(c(rhs[[1]], lhs, lapply(rhs[-1], identity)))
-    } else {
-      stop("missing condition error")
-    }
+    if (any(all.names(rhs) == ".")) {
+      replace_dots(rhs, lhs) }
+    else if (is.symbol(rhs) || rhs[[1]] == "function" || rhs[[1]] == "(") {
+      as.call(c(rhs, lhs)) }
+    else if (is.call(rhs)) {
+      as.call(c(rhs[[1]], lhs, lapply(rhs[-1], identity))) }
+    else {
+      stop("missing condition error") }
   }
   
-  decomp <- function(x) {
-    if (length(x) == 1) x
-    else if (length(x) == 3 && x[[1]] == "%>%") cnv(x)
-    else if (is.pairlist(x)) as.pairlist(lapply(x, decomp))
-    else as.call(lapply(x, decomp))
-  }
-  decomp(expr)
+  decomp <- function(x, exit_fn, pred_fn, cnv_fn) {
+    if (exit_fn(x)) x
+    else if (pred_fn(x)) cnv_fn(x)
+    else if (is.pairlist(x)) as.pairlist(lapply(x, decomp, exit_fn, pred_fn, cnv_fn))
+    else as.call(lapply(x, decomp, exit_fn, pred_fn, cnv_fn)) }
+  
+  replace_dots <- function(expr, expr_new) {
+    # not expand `~` because a dot is sometimes used for formula
+    decomp(expr, 
+      function(x) (length(x) == 1 && !identical(x, quote(.))) || (length(x) > 1 && x[[1]] == "~"),
+      function(x) identical(x, quote(.)),
+      function(x) expr_new ) }
+
+  decomp_pipe <- function(expr) {
+    decomp(expr, 
+      function(x) length(x) == 1,
+      function(x) length(x) == 3 && x[[1]] == "%>%",
+      function(x) cnv(x) ) }
+  
+  decomp_pipe(expr)    
 }
 
 ###
