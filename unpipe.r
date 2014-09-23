@@ -1,11 +1,12 @@
 unpipe <- function(expr) {
-    
+  pipe_sym <- c("%>%", "%>>%")
+  
   cnv <- function(x) {
     lhs <- x[[2]]
     rhs <- x[[3]]
     
-    if (any(all.names(rhs) == "%>%")) rhs <- decomp_pipe(rhs)
-    if (any(all.names(lhs) == "%>%")) lhs <- decomp_pipe(lhs)
+    if (any(pipe_sym %in% all.names(rhs))) rhs <- expand_pipe(rhs)
+    if (any(pipe_sym %in% all.names(lhs))) lhs <- expand_pipe(lhs)
         
     # main
     if (any(all.names(rhs) == ".")) {
@@ -25,19 +26,19 @@ unpipe <- function(expr) {
     else as.call(lapply(x, decomp, exit_fn, pred_fn, cnv_fn)) }
   
   replace_dots <- function(expr, expr_new) {
-    # not expand `~` because a dot is sometimes used for formula
+    # not expand `~` because a dot is sometimes used in a formula's argument
     decomp(expr, 
       function(x) (length(x) <= 1 && x != ".") || (is.call(x) && x[[1]] == "~"),
       function(x) is.symbol(x) && x == ".", # faster than identical(x, quote(.))
       function(x) expr_new ) }
 
-  decomp_pipe <- function(expr) {
+  expand_pipe <- function(expr) {
     decomp(expr, 
       function(x) length(x) <= 1, # NULL, list(), numeric(0)
-      function(x) length(x) == 3 && x[[1]] == "%>%",
+      function(x) length(x) == 3 && as.character(x[[1]]) %in% pipe_sym,
       function(x) cnv(x) ) }
   
-  decomp_pipe(expr)    
+  expand_pipe(expr)    
 }
 
 ###
