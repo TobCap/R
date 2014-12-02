@@ -53,21 +53,32 @@ local({
   git.dir.url <- "https://raw.github.com/TobCap/R/master"
   files <- c("startFunctions.r", "functionalProgramming.r", "tailCallOptimization.r")
   git.files <- file.path(git.dir.url, files)
-  startup.packages <- c(
-    "ggplot2", "gridExtra", "reshape2", "microbenchmark",
-    "mmap", "ff", "ffbase", "gmp", "compiler", "parallel", "RODBC",
-    "data.table", "timeDate", "lubridate", "PerformanceAnalytics",
-    "quantmod", "RQuantLib", "Rcpp", "RcppDE", "sos")
+  startup_packages <- c("microbenchmark")
+  # startup_packages <- c(
+    # "ggplot2", "gridExtra", "reshape2", "microbenchmark",
+    # "mmap", "ff", "ffbase", "gmp", "compiler", "parallel", "RODBC",
+    # "data.table", "timeDate", "lubridate", "PerformanceAnalytics",
+    # "quantmod", "RQuantLib", "Rcpp", "RcppDE", "sos")
   
-  answer <- substr(readline("download files in your github (y/n)? "), 1L, 1L)
+  utils::flush.console()
+  answer1 <- function() substr(readline("download files in your github? (y/n) "), 1L, 1L)
+  utils::flush.console()
+  answer2 <- function() substr(readline("read your default packages? (y/n) "), 1L, 1L)
   utils::flush.console()
   
   download.github <- 
-    switch(tolower(answer)
+    switch(tolower(answer1())
       , y = TRUE
       , n = FALSE
-      , {cat("quit downloading from github"); FALSE}
+      , {cat("quit downloading from github", "\n"); FALSE}
     )  
+  
+  load_default_packages <- 
+    switch(tolower(answer2())
+      , y = TRUE
+      , n = FALSE
+      , {cat("cancelled", "\n"); FALSE}
+    )
   
   isWindows <- .Platform$OS.type == "windows"
   if (isWindows) utils:::setInternet2(TRUE)
@@ -98,13 +109,17 @@ local({
     for (x in git.files) {
       attach.file(x)
     }
+  }
+  
+  if (load_default_packages) {
     # load.packages() is defined in above "startFunctions.r"
-    load.packages(startup.packages)
-  } else {
-    for (x in startup.packages){
-      suppressPackageStartupMessages(library(x, character.only = TRUE, quietly = TRUE))
-      cat("###", "package", x, "is loaded\n")
-      utils:::flush.console()
+    if (exists("load.packages")) load.packages(startup_packages)
+    else {
+      for (x in startup_packages){
+        suppressPackageStartupMessages(library(x, character.only = TRUE, quietly = TRUE))
+        cat("###", "package", x, "is loaded\n")
+        utils:::flush.console()
+      }
     }
   }
     
