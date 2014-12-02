@@ -431,7 +431,7 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 
 ### Pipeline like operator
 ## Left value can be passed by ".." just like scala's underscore "_".
-## I use ".."; "." is already used in "package:plyr".
+## I use ".."; "." is sometimes used within a model formula expression or "package:plyr".
 ## It is not fast but easy to read and understand because of using fewer parentheses.
 `%|%` <- (function() {  
   replace_two_dots <- function(expr, expr_new) {
@@ -653,9 +653,10 @@ fix. <- function(g) f <- g(f)
 # avoid to conflict with `memoise` that is already taken in library("memoise")
 memoizer <- function(f) {
   .memo <- new.env()
+  f_orig <- f
   function(...){
     key <- paste(list(...), collapse=",")
-    if (is.null(.memo[[key]])) .memo[[key]] <- f(...)
+    if (is.null(.memo[[key]])) .memo[[key]] <- f_orig(...)
     .memo[[key]]
   }
 }
