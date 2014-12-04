@@ -9,7 +9,7 @@ match.with <- function(...) {
   delayedAssign("expr_value_deparse", parse(text = deparse(expr_value))[[1]])
   
   wildcards <- c(quote(.), quote(`_`), quote(otherwise))
-  wildcards_char <- sapply(wildcards, as.character)
+  wildcards_char <- lapply(wildcards, as.character)
 
   equals_recursive <- function(c1, c2, wildcard = NULL, strict_int_dbl= FALSE) {
     if (!is.null(wildcard) && !is.language(c2))
@@ -41,7 +41,7 @@ match.with <- function(...) {
       else if (!is.recursive(c1) || !is.recursive(c2) || length(c1) == 0) {
         # compare a pair of elements here
         # for 1L == 1.0
-        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2)) c1 == c2
+        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2) && length(c1) > 0) c1 == c2
         else identical(c1, c2) }
       else {
         for(i in seq_along(c1)) {
@@ -90,15 +90,15 @@ match.with <- function(...) {
 
     #
     if (is_wildcard || has_double_colon) {
-      return(ans) } # `wildcard` or x::xs
+      return(ans) } # `wildcard`, x::xs
     else if ((simbol_is_referred || name_is_referred) && eval(cond, evaled.list, parent_frame)) {
-      return(ans) } # is.null(x) or x %% 2 == 0
+      return(ans) } # is.null(x), x %% 2 == 0
     else if (cond_is_atomic && equals_recursive(expr_value, cond)) {
-      return(ans) } # 1 or "" or NULL
+      return(ans) } # 1, "", NULL
+    else if (!cond_is_atomic && !has_double_colon && !has_wildcard_in_expr && equals_recursive(expr_value, eval(cond, parent_frame))) {
+      return(ans) } # list(1,2), numeric(0)
     else if (!cond_is_atomic && has_wildcard_in_expr && equals_recursive(expr_value_deparse, cond, wildcard = wildcards)) {
-      return(ans) } # list(1,.)
-    else if (!cond_is_atomic && equals_recursive(expr_value_deparse, cond)) {
-      return(ans) } # list(1,2)
+      return(ans) } # list(1,.), 
     else {
       # not matched in this loop
     }
@@ -153,10 +153,10 @@ local({
 
 # `::` is recognized as separater of head and tail
 local({
-  len <- function(n) {
-    match.with(n
-      , length(n) == 0 -> 0 
-      , x::xs          -> 1 + len(xs)
+  len <- function(xs) {
+    match.with(xs
+      , length(xs) == 0 -> 0 
+      , y::ys          -> 1 + len(ys)
     )
   }
   cat(len(list(1,2,3)), "\n")
@@ -305,12 +305,12 @@ local({
 })
 
 local({
-  sum3 <- function(n.vec) {
-    match.with(n.vec
+  sum_vec <- function(xs) {
+    match.with(xs
       , integer(0) -> 0
-      , x::xs      -> x + sum3(xs)
+      , y::ys      -> y + sum_vec(ys)
     )
   }
-  cat(sum3(1:5), "\n") # 1:5 is integer
-  cat(sum3(c(1,2,3,4,5)), "\n") # error because numeric(0) is not matched with integer(0)
+  cat(sum_vec(1:5), "\n") # 1:5 is integer
+  cat(sum_vec(c(1,2,3,4,5)), "\n") # error because numeric(0) is not matched with integer(0)
 })
