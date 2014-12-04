@@ -305,12 +305,12 @@ local({
 })
 
 local({
-  sum.vec <- function(n.vec) {
+  sum3 <- function(n.vec) {
     match.with(n.vec
       , integer(0) -> 0
-      , x::xs      -> x + sum.vec(xs)
+      , x::xs      -> x + sum3(xs)
     )
   }
-  cat(sum.vec(10L), "\n")
-  cat(sum.vec(10), "\n") # error because numeric(0) is not matched with integer(0)
+  cat(sum3(1:5), "\n") # 1:5 is integer
+  cat(sum3(c(1,2,3,4,5)), "\n") # error because numeric(0) is not matched with integer(0)
 })
