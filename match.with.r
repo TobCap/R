@@ -7,7 +7,7 @@ match.with <- function(...) {
   expr_name <- names(dots[1])
   #expr_value_deparse <- parse(text = deparse(expr_value))[[1]]
   delayedAssign("expr_value_deparse", parse(text = deparse(expr_value))[[1]])
-
+  
   wildcards <- c(quote(.), quote(`_`), quote(otherwise))
   wildcards_char <- sapply(wildcards, as.character)
 
@@ -45,8 +45,8 @@ match.with <- function(...) {
         else identical(c1, c2) }
       else {
         for(i in seq_along(c1)) {
-          if (!out_fun(c1[[i]], c2[[i]])) return(FALSE)}
-        return(TRUE)}
+          if (!out_fun(c1[[i]], c2[[i]])) return(FALSE) }
+        return(TRUE) }
     }
     out_fun(c1, c2)
   }
@@ -79,11 +79,11 @@ match.with <- function(...) {
 
     evaled.list <-
       if (has_double_colon) {
-        hd <- expr_value[[1]]
-        tl <- if (length(expr_value[-1]) == 0) NULL else expr_value[-1]
-        `names<-`(list(hd, tl), c(as.character(cond[[2]]), as.character(cond[[3]]))) }
+        `names<-`(
+          list(expr_value[[1]], expr_value[-1]),
+          list(as.character(cond[[2]]), as.character(cond[[3]])) ) }
       else if (name_is_referred) {
-        `names<-`(list(expr_value), c(expr_name)) }
+        `names<-`(list(expr_value), list(expr_name)) }
       else NULL
 
     ans <- eval(statement[[2]], envir = evaled.list, enclos = parent_frame)
@@ -94,10 +94,10 @@ match.with <- function(...) {
     else if ((simbol_is_referred || name_is_referred) && eval(cond, evaled.list, parent_frame)) {
       return(ans) } # is.null(x) or x %% 2 == 0
     else if (cond_is_atomic && equals_recursive(expr_value, cond)) {
-      return(ans) } # NULL or 1
+      return(ans) } # 1 or "" or NULL
     else if (!cond_is_atomic && has_wildcard_in_expr && equals_recursive(expr_value_deparse, cond, wildcard = wildcards)) {
       return(ans) } # list(1,.)
-    else if (!cond_is_atomic && equals_recursive(expr_value_deparse, cond)){
+    else if (!cond_is_atomic && equals_recursive(expr_value_deparse, cond)) {
       return(ans) } # list(1,2)
     else {
       # not matched in this loop
@@ -109,27 +109,27 @@ match.with <- function(...) {
 
 foldr <- function(f, init, lst) {
   match.with(lst
-    , NULL  -> init
-    , x::xs -> f(x, foldr(f, init, xs))
+    , length(lst) == 0 -> init
+    , x::xs            -> f(x, foldr(f, init, xs))
   )
 }
 
-foldl <- function(f, init, lst){
+foldl <- function(f, init, lst) {
   match.with(lst
-    , NULL  -> init
-    , x::xs -> foldl(f, f(init, x), xs)
+    , length(lst) == 0 -> init
+    , x::xs            -> foldl(f, f(init, x), xs)
  )
 }
 
 local({
-   cat("foldr(`+`, 0, 1:10)", foldr(`+`, 0, 1:10), "\n")
-   cat("foldr(`-`, 0, 1:10)", foldr(`-`, 0, 1:10), "\n")
-   cat("foldl(`+`, 0, 1:10)", foldl(`+`, 0, 1:10), "\n")
-   cat("foldl(`-`, 0, 1:10)", foldl(`-`, 0, 1:10), "\n")
- })
+  cat("foldr(`+`, 0, 1:3) == (1+(2+(3+0)))", foldr(`+`, 0, 1:3), "\n")
+  cat("foldr(`-`, 0, 1:3) == (1-(2-(3-0)))", foldr(`-`, 0, 1:3), "\n")
+  cat("foldl(`+`, 0, 1:3) == (((0+1)+2)+3)", foldl(`+`, 0, 1:3), "\n")
+  cat("foldl(`-`, 0, 1:3) == (((0-1)-2)-3)", foldl(`-`, 0, 1:3), "\n")
+})
 
 local({
-  fizzbuzz <- function(z){
+  fizzbuzz <- function(z) {
     match.with(list(z %% 5, z %% 3)
     , list(0, 0) -> "FizzBuzz"
     , list(0, .) -> "Fizz"
@@ -137,12 +137,12 @@ local({
     , otherwise  -> as.character(z)
     )
   }
-  cat("sapply(1:30, fizzbuzz)", sapply(1:30, fizzbuzz), "\n")
+  sapply(1:30, fizzbuzz)
 })
 
 # left expression is evaluated in parent.frame().
 local({
-  evenodd <- function(x){
+  evenodd <- function(x) {
     match.with(x
       , x %% 2 == 0 -> "even"
       , x %% 2 != 0 -> "odd"
@@ -153,19 +153,34 @@ local({
 
 # `::` is recognized as separater of head and tail
 local({
-  len <- function(n){
+  len <- function(n) {
     match.with(n
-      , NULL  -> 0 # is.null(n) -> 0,
-      , x::xs -> 1 + len(xs)
+      , length(n) == 0 -> 0 
+      , x::xs          -> 1 + len(xs)
     )
   }
-  cat(paste(len(list(1,2,3)), "\n"))
-  cat(paste(len(1:5), "\n"))
+  cat(len(list(1,2,3)), "\n")
+  cat(len(1:3), "\n")
+  
+  len2 <- function(n) { foldl(function(x, `_`) x + 1, 0, n) }
+  cat(len2(1:3), "\n")
 })
 
-# "." is treated as a woldcard symbol.
 local({
- two.or.four <- function(x){
+  len <- function(n) {
+    match.with(n
+      , list() -> 0 # class sensitive when using list() or integer(0) or numeric(0)
+      , x::xs  -> 1 + len(xs)
+    )
+  }
+  tryCatch(cat(len(list(1,2,3)), "\n"), error = function(e) print(e)) # run
+  tryCatch(cat(len(1:3), "\n"), error = function(e) print(e)) # not run
+  tryCatch(cat(len(c(1,2,3)), "\n"), error = function(e) print(e)) # not run
+})
+
+# ., `_`, and otherwise are treated as a wildcard symbol.
+local({
+ two.or.four <- function(x) {
   match.with(x
     , 2 -> "two"
     , 4 -> "four"
@@ -176,22 +191,22 @@ local({
 })
 
 local({
-   f3 <- function(x){
+   f3 <- function(x) {
      match.with(x
-      , list(0, 0) -> "0-0"
-      , list(1, 0) -> "1-0"
-      , list(0, .) -> "0-?"
-      , list(., 3) -> "?-3"
-      , list(., .) -> "?-?"
-      , otherwise  -> "others") }
+      , list(0, 0) -> "(0, 0) pair"
+      , list(1, 0) -> "(1, 0) pair"
+      , list(0, .) -> "(1, ?) pair"
+      , list(., 3) -> "(?, 3) pair"
+      , list(., .) -> "(?, ?) pair"
+      , otherwise  -> "another one") }
 
-   paste(
-    f3(list(0, 0)),
-    f3(list(1, 0)),
-    f3(list(0, 1)),
-    f3(list(1, 3)),
-    f3(list(1, 1)),
-    f3(list(1, 2, 3)))
+   cat(
+    "list(0, 0) is", f3(list(0, 0)), "\n",
+    "list(1, 0) is", f3(list(1, 0)), "\n",
+    "list(0, 2) is", f3(list(0, 2)), "\n",
+    "list(1, 3) is", f3(list(1, 3)), "\n",
+    "list(2, 1) is", f3(list(2, 1)), "\n",
+    "list(1, 2, 3) is", f3(list(1, 2, 3)), "\n")
  })
 
 local({
@@ -200,7 +215,6 @@ local({
     , length(z) == 1 -> "one"
     , length(z) == 2 -> "two"
     , length(z) >= 3 -> "very long"
-    , . -> "_"
   )
 })
 ## or
@@ -210,7 +224,6 @@ local({
     , 1 -> "one"
     , 2 -> "two"
     , x >= 3 -> "very long"
-    , . -> "._."
   )
 })
 
@@ -224,21 +237,6 @@ local({
  )
 })
 
-
-local({
-  f <- function(x) {
-    match.with(x
-    , list() -> 0
-    , list(.) -> 1
-    , list(., .) -> 2
-    , list(., ., .) -> 3
-    , . -> length(x)
-    )
-  }
-  cat(f(list(2,2)), "\n")
-  cat(f(list(1,2,3,4,5)), "\n")
-})
-
 local({
   z <- 5:11
   match.with(z
@@ -249,54 +247,70 @@ local({
   )
 })
 
-# recursive call works! but speed is impractical.
 local({
-  fib.m <- function(n){
+  f <- function(x) {
+    match.with(x
+    , list() -> "0 length of list"
+    , list(.) -> "1 length of list"
+    , list(., .) -> "2 lenght of list"
+    , list(., ., .) -> "3 length of list"
+    , otherwise -> "others"
+    )
+  }
+  cat(f(list(2,2)), "\n")
+  cat(f(1:2), "\n")
+  cat(f(list(1,2,3,4,5)), "\n")
+})
+
+# recursive call works but speed is impractical.
+local({
+  fib1 <- function(n) {
     match.with(n
       , 0 -> 0
       , 1 -> 1
-      , . -> fib.m(n - 1) + fib.m(n - 2)
+      , . -> fib1(n - 1) + fib1(n - 2)
     )
   }
-  sapply(1:10, fib.m)
+  sapply(1:10, fib1)
 })
 
 local({
-  fib.m2 <- function(n, a = 0, b = 1){
+  fib2 <- function(n, a = 0, b = 1) {
     match.with(n
       , 0 -> a
-      , . -> fib.m2(n - 1, b, a + b)
+      , . -> fib2(n - 1, b, a + b)
     )
   }
-  sapply(1:10, fib.m2)
+  sapply(1:10, fib2)
 })
 
 local({
-  sum.m <- function(n){
+  sum1 <- function(n) {
     match.with(n
     , 0 -> 0
-    , . -> n + sum.m(n - 1)
+    , . -> n + sum1(n - 1)
    )
   }
-  sapply(1:10, sum.m)
+  sapply(1:10, sum1)
 })
 
 local({
-  sum.m2 <- function(n, acc = 0){
+  sum2 <- function(n, acc = 0) {
     match.with(n
       , 0 -> acc
-      , . -> sum.m2(n - 1, acc + n)
+      , . -> sum2(n - 1, acc + n)
     )
   }
-  sapply(1:10, sum.m2)
+  sapply(1:10, sum2)
 })
 
 local({
-  sum.vec <- function(n.vec){
+  sum.vec <- function(n.vec) {
     match.with(n.vec
-      , NULL  -> 0
-      , x::xs -> x + sum.vec(xs)
+      , integer(0) -> 0
+      , x::xs      -> x + sum.vec(xs)
     )
   }
-  sapply(lapply(1:10, seq_len), sum.vec)
+  cat(sum.vec(10L), "\n")
+  cat(sum.vec(10), "\n") # error because numeric(0) is not matched with integer(0)
 })
