@@ -38,10 +38,9 @@ match.with <- function(...) {
 
       if (c2_is_wildcard) TRUE
       else if (length(c1) != length(c2)) FALSE
-      else if (!is.recursive(c1) || !is.recursive(c2) || length(c1) == 0) {
-        # length(c1) == 0 checks hear for NULL, numeric(0), etc.
-        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2) && length(c1) > 0 && length(c2) > 0 && 
-           is.finite(c1) && is.finite(c2)) c1 == c2 # compare a pair of elements like 1L == 1.0
+      else if (length(c1) == 0) identical(c1, c2)
+      else if (length(c1) == 1) {
+        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2)) as.double(c1) == as.double(c2)
         else identical(c1, c2) }
       else {
         for(i in seq_along(c1)) {
