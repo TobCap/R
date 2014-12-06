@@ -5,43 +5,43 @@ match.with <- function(...) {
   expr <- dots[[1]]
   expr_value <- eval(expr, parent_frame)
   expr_name <- names(dots[1])
-  #expr_value_deparse <- parse(text = deparse(expr_value))[[1]]
+  # expr_value_deparse <- parse(text = deparse(expr_value))[[1]]
   delayedAssign("expr_value_deparse", parse(text = deparse(expr_value))[[1]])
   
   wildcards <- c(quote(.), quote(`_`), quote(otherwise))
   wildcards_char <- lapply(wildcards, as.character)
 
   equals_recursive <- function(c1, c2, wildcard = NULL, strict_int_dbl= FALSE) {
-    if (!is.null(wildcard) && !is.language(c2))
-      stop("when using a wildcard, c2 must be a call or a symbol")
+    if (!is.null(wildcard) && !is.language(c2)) {
+      stop("when using a wildcard, c2 must be a call or a symbol") }
 
     # coerce characters into symbols
-    if (!is.null(wildcard) && any(is.character(wildcard)))
-      wildcard <- lapply(wildcard, as.symbol)
+    if (!is.null(wildcard) && any(is.character(wildcard))) {
+      wildcard <- lapply(wildcard, as.symbol) }
 
     # shortcut without a wildcard
-    if (is.null(wildcard) && strict_int_dbl)
-      return(identical(c1, c2))
-    if (is.null(wildcard) && !strict_int_dbl && base::xor(is.numeric(c1), is.numeric(c2)))
-      return(FALSE)
+    if (is.null(wildcard) && strict_int_dbl) {
+      return(identical(c1, c2)) }
+    if (is.null(wildcard) && !strict_int_dbl && xor(is.numeric(c1), is.numeric(c2))) {
+      return(FALSE) }
 
     # c2 may have wildcard symbol
     out_fun <- function(c1, c2) {
-      ## When doing `==`, symbols are coerced into character by
+      ## When using `==`, symbols are coerced into character by
       ## deparse() in C lang level (See R source's relop.c#80-81)
       ## and comparison between a symbol and list of symbols may
       ## mistake in a special situation: quote(`_`) == list(quote(`_`), "_")
       ## The result in above is c(FALSE, TRUE).
-      c2_is_wildcard <-
+      c2_is_wildcard <- 
         !is.null(wildcard) && is.symbol(c2) &&
-        (as.character(c2) %in% lapply(wildcard, as.character))
+        (as.character(c2) %in% wildcards_char)
 
       if (c2_is_wildcard) TRUE
       else if (length(c1) != length(c2)) FALSE
       else if (!is.recursive(c1) || !is.recursive(c2) || length(c1) == 0) {
-        # compare a pair of elements here
-        # for 1L == 1.0
-        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2) && length(c1) > 0) c1 == c2
+        # length(c1) == 0 checks hear for NULL, numeric(0), etc.
+        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2) && length(c1) > 0 && length(c2) > 0 && 
+           is.finite(c1) && is.finite(c2)) c1 == c2 # compare a pair of elements like 1L == 1.0
         else identical(c1, c2) }
       else {
         for(i in seq_along(c1)) {
@@ -77,7 +77,7 @@ match.with <- function(...) {
     name_is_referred <- !is.null(expr_name) &&
       (expr_name %in% cond_vars) && !has_wildcard_in_expr
 
-    evaled.list <-
+    eval_arg_2nd <-
       if (has_double_colon) {
         `names<-`(
           list(expr_value[[1]], expr_value[-1]),
@@ -86,19 +86,19 @@ match.with <- function(...) {
         `names<-`(list(expr_value), list(expr_name)) }
       else NULL
 
-    ans <- eval(statement[[2]], envir = evaled.list, enclos = parent_frame)
+    ans <- eval(statement[[2]], envir = eval_arg_2nd, enclos = parent_frame)
 
     #
     if (is_wildcard || has_double_colon) {
       return(ans) } # `wildcard`, x::xs
-    else if ((simbol_is_referred || name_is_referred) && eval(cond, evaled.list, parent_frame)) {
+    else if ((simbol_is_referred || name_is_referred) && eval(cond, eval_arg_2nd, parent_frame)) {
       return(ans) } # is.null(x), x %% 2 == 0
     else if (cond_is_atomic && equals_recursive(expr_value, cond)) {
       return(ans) } # 1, "", NULL
     else if (!cond_is_atomic && !has_double_colon && !has_wildcard_in_expr && equals_recursive(expr_value, eval(cond, parent_frame))) {
       return(ans) } # list(1,2), numeric(0)
     else if (!cond_is_atomic && has_wildcard_in_expr && equals_recursive(expr_value_deparse, cond, wildcard = wildcards)) {
-      return(ans) } # list(1,.), 
+      return(ans) } # list(1,.),
     else {
       # not matched in this loop
     }
