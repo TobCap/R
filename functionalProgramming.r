@@ -306,24 +306,24 @@ uncurry <- function(fun){
 
 ###
 ## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
-flip <- function(fun, l = 1, r = 2, .env = parent.frame()) {
-  args.new <- args.orig <- formals(args(match.fun(fun)))
-  stopifnot(1 < r, l < length(args.orig), l < r)
+flip <- function(fun, l = 1, r = 2, parent_env = parent.frame()) {
+  args_new <- args_orig <- formals(args(match.fun(fun)))
+  stopifnot(1 < r, l < length(args_orig), l < r)
   
-  names(args.new)[c(r, l)] <- names(args.orig)[c(l, r)]
-  args.new[c(r, l)] <- args.orig[c(l, r)]
-  
-  fun.sym <- substitute(fun)
+  names(args_new)[c(r, l)] <- names(args_orig)[c(l, r)]
+  args_new[c(r, l)] <- args_orig[c(l, r)]
   
   if (typeof(fun) == "closure") {
-    eval(call("function", as.pairlist(args.new), body(fun)), environment(fun), .env)
-  } else { ## special & builtin
+    eval(call("function", as.pairlist(args_new), body(fun)), environment(fun), parent_env)
+  } else { ## special & builtin  
+    fun_sym <- substitute(fun)
     body_ <- quote({
-      called <- match.call()
-      called[[1]] <- fun.sym
-      eval(called, environment(fun), .env)
+      called <- sys.call()
+      called[-1] <- called[-1][c(r, l)]
+      called[[1]] <- fun_sym
+      eval(called, environment(fun), parent.frame())
     })
-    eval(call("function", as.pairlist(args.new), body_), environment(), environment(fun))
+    eval(call("function", as.pairlist(args_new), body_), environment(), environment(fun))
   }
 }
 
@@ -345,6 +345,12 @@ flip.cr <- function(fun, .env = parent.frame()) {
 
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
+
+# (function(x){
+#   s <- flip(substitute)
+#   print(substitute(x, environment()))
+#   print(s(environment(),x))
+# })(x = 1:5)
 
 # > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest.fun(Dx, 5)(quote(x^10)) # nest.fun is defined below.
