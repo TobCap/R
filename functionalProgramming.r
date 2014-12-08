@@ -439,11 +439,12 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 ## Left value can be passed by ".." just like scala's underscore "_".
 ## I use ".."; "." is sometimes used within a model formula expression or "package:plyr".
 ## It is not fast but easy to read and understand because of using fewer parentheses.
-`%|%` <- (function() {  
+`%|%` <- (function() {
   replace_two_dots <- function(expr, expr_new) {
     cnv <- function(x){
       if (length(x) <= 1) {
         if (is.symbol(x) && x == "..") expr_new
+        else if (is.call(x) && x[[1]] == "..") as.call(list(expr_new))
         else x }
       else if (x[[1]] == "%|%") { x }
       else if (is.pairlist(x)) { as.pairlist(lapply(x, cnv)) }
@@ -459,17 +460,15 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
   
   function(lhs, rhs, p = parent.frame()) {
     # rhs_expr <- substitute(rhs)
-    rhs_expr <- strip_parenthesis(substitute(rhs))
+    rhs_expr <- strip_parenthesis(substitute(rhs))    
     
-    if (is.symbol(rhs_expr) || is.call(rhs_expr) && rhs_expr[[1]] == "function") {
-      # eval(rhs_expr, envir = p, enclos = p)(lhs) }
-      rhs(lhs) }
-    else if (any(all.names(rhs_expr) == "..")) {
-      ## has two_dots
+    if (any(all.names(rhs_expr) == "..")) { 
+      # has two_dots
       rhs_expr_mod <- replace_two_dots(rhs_expr, substitute(lhs))
       eval(rhs_expr_mod, envir = p, enclos = p) }
     else {
-      stop("missing pattern") }
+      # eval(rhs_expr, envir = p, enclos = p)(lhs) }
+      rhs(lhs) }
   }
 })()
 
