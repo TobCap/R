@@ -444,7 +444,8 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
     cnv <- function(x){
       if (length(x) <= 1) {
         if (is.symbol(x) && x == "..") expr_new
-        else x }
+        else if (is.call(x) && x[[1]] == "..") as.call(list(expr_new))
+        else x }      
       else if (x[[1]] == "%|%") { x }
       else if (is.pairlist(x)) { as.pairlist(lapply(x, cnv)) }
       else { as.call(lapply(x, cnv)) }
