@@ -61,11 +61,11 @@ local({
 
   inquire <- function(ask, cancel_msg = "") {
     ans <- substr(readline(ask), 1L, 1L)
-      utils::flush.console()
-      switch(tolower(ans)
-      , y = TRUE
-      , n = FALSE
-      , {cat(cancel_msg, "\n"); FALSE}
+    utils::flush.console()
+    switch(tolower(ans)
+      ,y = TRUE
+      ,n = FALSE
+      ,{cat(cancel_msg, "\n"); FALSE}
     )
   }
 
