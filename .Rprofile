@@ -13,7 +13,6 @@ local({
   options(error=quote(utils::dump.frames()))
 })
 
-
 # s <- function(n) if (n == 1) 0 else n + s(n - 1)
 
 # > sessionInfo()
@@ -50,64 +49,66 @@ options(expressions = 5e5)
 # load functions from github and attach them in the search path.
 # load startup packages
 local({
-  git.dir.url <- "https://raw.github.com/TobCap/R/master"
+  git_dir_url <- "https://raw.github.com/TobCap/R/master"
   files <- c("startFunctions.r", "functionalProgramming.r", "tailCallOptimization.r")
-  git.files <- file.path(git.dir.url, files)
+  git_files <- file.path(git_dir_url, files)
   startup_packages <- c("microbenchmark")
   # startup_packages <- c(
     # "ggplot2", "gridExtra", "reshape2", "microbenchmark",
     # "mmap", "ff", "ffbase", "gmp", "compiler", "parallel", "RODBC",
     # "data.table", "timeDate", "lubridate", "PerformanceAnalytics",
     # "quantmod", "RQuantLib", "Rcpp", "RcppDE", "sos")
-  
-  utils::flush.console()
-  answer1 <- function() substr(readline("download files in your github? (y/n) "), 1L, 1L)
-  utils::flush.console()
-  answer2 <- function() substr(readline("read your default packages? (y/n) "), 1L, 1L)
-  utils::flush.console()
-  
-  download.github <- 
-    switch(tolower(answer1())
+
+  inquire <- function(ask, cancel_msg = "") {
+    ans <- substr(readline(ask), 1L, 1L)
+      utils::flush.console()
+      switch(tolower(ans)
       , y = TRUE
       , n = FALSE
-      , {cat("quit downloading from github", "\n"); FALSE}
-    )  
-  
-  load_default_packages <- 
-    switch(tolower(answer2())
-      , y = TRUE
-      , n = FALSE
-      , {cat("cancelled", "\n"); FALSE}
+      , {cat(cancel_msg, "\n"); FALSE}
     )
+  }
+
+  dummy <- readline("press Enter Key ") # for RStudio
+  
+  download_github <- inquire(
+    ask = "  download files from your github? (y/n) ",
+    cancel_msg = "quit downloading from github"
+  )
+  
+  load_default_packages <- inquire(
+    ask = "  read your default packages? (y/n) ",
+    cancel_msg = "canceled"
+  )
   
   isWindows <- .Platform$OS.type == "windows"
   if (isWindows) utils:::setInternet2(TRUE)
   
-  get.file.github <- function(git.url){
+  get_file_github <- function(git_url){
     # returns downloaded local path
-    local.path <- file.path(tempdir(), basename(git.url))
+    local_path <- file.path(tempdir(), basename(git_url))
     print("downloading a file from github")
     if (isWindows) {      
-      utils:::download.file(url = git.url, destfile = local.path)
+      utils:::download.file(url = git_url, destfile = local_path)
     } else {
       # http://stackoverflow.com/questions/7715723/sourcing-r-script-over-https
       # http://stackoverflow.com/questions/14441729/read-a-csv-from-github-into-r
-      rawfile <- sub("https://github.", "https://raw.github.",  git.url)
+      rawfile <- sub("https://github.", "https://raw.github.",  git_url)
       # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
       utils:::download.file(url = rawfile, destfile = rawfile, method = "curl", extra = "-k")
       # "-k" disables verifying its peer process. see http://curl.haxx.se/docs/sslcerts.html
     }
-    return(local.path)
+    return(local_path)
   }
   
-  attach.file <- function(git.url){
-    local.path <- get.file.github(git.url)
-    sys.source(local.path, envir = attach(NULL, name = basename(local.path)))
+  attach_file <- function(git_url){
+    local_path <- get_file_github(git_url)
+    sys.source(local_path, envir = attach(NULL, name = basename(local_path)))
   }
    
-  if (download.github){
-    for (x in git.files) {
-      attach.file(x)
+  if (download_github){
+    for (x in git_files) {
+      attach_file(x)
     }
   }
   
