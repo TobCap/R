@@ -40,8 +40,10 @@ match.with <- function(...) {
       else if (length(c1) != length(c2)) FALSE
       else if (length(c1) == 0) identical(c1, c2)
       else if (length(c1) == 1) {
-        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2)) as.double(c1) == as.double(c2)
-        else identical(c1, c2) }
+        if (!strict_int_dbl && is.numeric(c1) && is.numeric(c2)) {
+          isTRUE(as.double(c1) == as.double(c2)) }
+        else {
+          identical(c1, c2) }} 
       else {
         for(i in seq_along(c1)) {
           if (!out_fun(c1[[i]], c2[[i]])) return(FALSE) }
@@ -179,14 +181,16 @@ local({
 
 # ., `_`, and otherwise are treated as a wildcard symbol.
 local({
- two.or.four <- function(x) {
+ count_num <- function(x) {
   match.with(x
+    , 1 -> "one"
     , 2 -> "two"
+    , 3 -> "three"
     , 4 -> "four"
     , . -> "_"
     )
   }
-  sapply(1:10, two.or.four)
+  sapply(1:10, count_num)
 })
 
 local({
@@ -194,10 +198,10 @@ local({
      match.with(x
       , list(0, 0) -> "(0, 0) pair"
       , list(1, 0) -> "(1, 0) pair"
-      , list(0, .) -> "(1, ?) pair"
+      , list(0, .) -> "(0, ?) pair"
       , list(., 3) -> "(?, 3) pair"
       , list(., .) -> "(?, ?) pair"
-      , otherwise  -> "another one") }
+      , otherwise  -> "another pair") }
 
    cat(
     "list(0, 0) is", f3(list(0, 0)), "\n",
@@ -205,7 +209,9 @@ local({
     "list(0, 2) is", f3(list(0, 2)), "\n",
     "list(1, 3) is", f3(list(1, 3)), "\n",
     "list(2, 1) is", f3(list(2, 1)), "\n",
-    "list(1, 2, 3) is", f3(list(1, 2, 3)), "\n")
+    "list(1, 2, 3) is", f3(list(1, 2, 3)), "\n",
+    "list(list(1,2), 3) is", f3(list(list(1,2), 3)), "\n",
+    "list(0, 1:2) is", f3(list(0, 1:2)), "\n")
  })
 
 local({
