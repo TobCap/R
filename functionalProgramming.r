@@ -437,61 +437,25 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
 
 ### Pipeline like operator
 ## Left value can be passed by ".." just like scala's underscore "_".
-## I use ".."; "." is sometimes used within a model formula expression or "package:plyr".
+## I use ".."; "." is sometimes used within a model formula expression or other packages as a meaningful symbol.
 ## It is not fast but easy to read and understand because of using fewer parentheses.
-`%|%` <- (function() {
-  replace_two_dots <- function(expr, expr_new) {
-    cnv <- function(x){
-      if (length(x) <= 1) {
-        if (is.symbol(x) && x == "..") expr_new
-        else if (is.call(x) && x[[1]] == "..") as.call(list(expr_new))
-        else x }
-      else if (x[[1]] == "%|%") { x }
-      else if (is.pairlist(x)) { as.pairlist(lapply(x, cnv)) }
-      else { as.call(lapply(x, cnv)) }
-    }
-    cnv(expr)
-  }
-  
-  strip_parenthesis <- function(expr) {
-    if (length(expr) != 2 || (expr[[1]] != "(" && expr[[1]] != "{")) { expr }
-    else { strip_parenthesis(expr[[2]]) } 
-  }
+`%|%` <- (function() { 
+  two_dots_arg <- as.pairlist(alist(..=))
   
   function(lhs, rhs, p = parent.frame()) {
-    # rhs_expr <- substitute(rhs)
-    rhs_expr <- strip_parenthesis(substitute(rhs))    
-    
-    if (any(all.names(rhs_expr) == "..")) { 
-      # has two_dots
-      rhs_expr_mod <- replace_two_dots(rhs_expr, substitute(lhs))
-      eval(rhs_expr_mod, envir = p, enclos = p) }
+    rhs_expr <- substitute(rhs)
+    if (length(rhs_expr) == 1 && is.symbol(rhs_expr)) {
+      rhs(lhs) } # shortcut purpose for speedup
+    else if (any(all.names(rhs_expr) == "..")) {
+      rhs_closure <- eval(call("function", two_dots_arg, rhs_expr), p, p)
+      rhs_closure(lhs) }
     else {
-      # eval(rhs_expr, envir = p, enclos = p)(lhs) }
       rhs(lhs) }
   }
 })()
 
-### other pipe operators like F#
-## http://msdn.microsoft.com/en-us/library/dd233228.aspx
-"%|>%" <- function(x, f) f(x) # forward pipe operator
-"%<|%" <- function(f, x) f(x) # backward pipe operator
-
-## functional composition
-"%>>%" <- function(f, g) function(x) g(f(x)) # forward composition
-"%<<%" <- function(f, g) function(x) f(g(x)) # backward composition
-compose. <- function(f, g) function(x) f(g(x)) # rename
-
-## The old version was simpler but a left side is evaluated before passing it into a right side function
-# "%|%" <- function(lhs, rhs){
-#   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
-#   if (is.function(ans))
-#     ans(lhs)  
-#   else
-#     ans
-# }
-
 ## examples
+## f.() is defined at line 25 in this file.
 # > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
 # [1]  0  1  4  9 16
 # > 1:5 %|% (..-1) %|% (..^2)
@@ -527,17 +491,17 @@ compose. <- function(f, g) function(x) f(g(x)) # rename
 
 # > microbenchmark("%|%" = 1 %|% sum, "%>%" = 1 %>% sum)
 # Unit: microseconds
-#  expr     min      lq  median      uq     max neval
-#   %|%   9.363  10.254  13.374  14.266  58.845   100
-#   %>% 165.387 167.616 168.953 171.851 353.954   100
+# expr     min      lq      mean  median       uq     max neval
+# %|%   8.024   8.916  15.83488  12.928  14.2655 263.011   100
+# %>% 257.661 263.011 297.08162 268.137 301.7935 789.922   100
 
 # > microbenchmark(
 #     "%|%" = 1 %|% sum(.., rm.na = TRUE),
 #     "%>%" = 1 %>% sum(rm.na = TRUE))
-# Unit: microseconds
-#  expr     min       lq   median       uq     max neval
-#   %|% 162.266 198.5990 205.2845 210.4115 359.304   100
-#   %>% 269.255 337.2375 341.0270 347.9370 687.402   100
+## Unit: microseconds
+## expr     min      lq      mean   median       uq      max neval
+## %|%  24.518  27.639  39.22936  35.8855  38.1155  183.662   100
+## %>% 382.033 396.299 468.14073 420.5940 462.9430 1113.558   100
 
 # microbenchmark(
 # "%>%" =   
@@ -553,16 +517,35 @@ compose. <- function(f, g) function(x) f(g(x)) # rename
 #     subset(.., Wind > 12, c(Ozone, Solar.R, Wind))
 # )
 ## Unit: milliseconds
-##  expr      min       lq   median       uq      max neval
-##   %>% 10.02374 10.19620 10.28466 10.53446 12.14736   100
-##   %|% 14.99472 15.07445 15.18651 15.36291 50.14812   100
+## expr      min       lq     mean   median       uq      max neval
+## %>% 25.89355 27.31938 31.88473 28.17238 34.17859 90.42461   100
+## %|% 24.65473 25.79749 30.46729 28.68302 32.91770 69.69452   100
 
 ##                  %|%                 %>%
 ## receiving symbol ..                  .
-## speed                  depends on its situation
+## speed            no comment
 ## syntax           R like              can omit first argument
 ## evaluation       lazy                eager
 ## addOne           (..+1)              `+`(1) or add(1)
+
+## The old version was simpler but a left side is evaluated before passing it into a right side function
+# "%|%" <- function(lhs, rhs){
+#   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
+#   if (is.function(ans))
+#     ans(lhs)  
+#   else
+#     ans
+# }
+
+### other pipe operators like F#
+### http://msdn.microsoft.com/en-us/library/dd233228.aspx
+"%|>%" <- function(x, f) f(x) # forward pipe operator
+"%<|%" <- function(f, x) f(x) # backward pipe operator
+
+### functional composition
+"%>>%" <- function(f, g) function(x) g(f(x)) # forward composition
+"%<<%" <- function(f, g) function(x) f(g(x)) # backward composition
+compose. <- function(f, g) function(x) f(g(x)) # rename
 
 # f1 <- f.(x, {cat("f1(x = ", x, ") -> ", sep = ""); x + 1})
 # f2 <- f.(x, {cat("f2(x = ", x, ") -> ", sep = ""); x * 2})
