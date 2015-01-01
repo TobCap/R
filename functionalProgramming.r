@@ -1,4 +1,4 @@
-### functional operators
+### functional operators and useful functions
 
 ## Auxiliary function
 as.formals <- function(x, value = list(quote(expr=))) {
@@ -472,15 +472,15 @@ zipWith. <- function(fun, ..., do.unlist = FALSE) {
   }
 })()
 
-### other binary operators
-## http://neue.cc/2011/02/14_302.html
-"%|>%" <- function(x, f) f(x)
-"%<|%" <- function(f, x) f(x)
+### other pipe operators like F#
+## http://msdn.microsoft.com/en-us/library/dd233228.aspx
+"%|>%" <- function(x, f) f(x) # forward pipe operator
+"%<|%" <- function(f, x) f(x) # backward pipe operator
 
 ## functional composition
-"%>>%" <- function(f, g) function(x) g(f(x))
-"%<<%" <- function(f, g) function(x) f(g(x))
-compose. <- function(f, g) function(x) f(g(x))
+"%>>%" <- function(f, g) function(x) g(f(x)) # forward composition
+"%<<%" <- function(f, g) function(x) f(g(x)) # backward composition
+compose. <- function(f, g) function(x) f(g(x)) # rename
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
 # "%|%" <- function(lhs, rhs){
