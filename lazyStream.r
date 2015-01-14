@@ -375,19 +375,15 @@ lany <- function(f, x) {
 }
 
 ## and :: [Bool] -> Bool
-land <- function(x) { # value
-  hd <- lhead(x)
-  if (lnull(hd)) TRUE
-  else if (!isTRUE(hd)) FALSE
-  else lall(ltail(x))
+land <- function(x) {
+  if (lnull(x)) TRUE
+  else isTRUE(lhead(x)) && land(ltail(x))
 }
 
 ## or :: [Bool] -> Bool
 lor <- function(x) {
-  hd <- lhead(x)
-  if (lnull(hd)) FALSE # should be finite when return FALSE
-  else if (isTRUE(hd)) TRUE
-  else lany(ltail(x))
+  if (lnull(x)) FALSE
+  else isTRUE(lhead(x)) || lor(ltail(x))
 }
 
 lsum <- function(x, acc = 0) {
