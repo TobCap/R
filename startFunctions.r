@@ -113,25 +113,25 @@ repmat <- function(m, nr, nc = nr) {
 # list2(x = z, y = 10 + x, z = y + 3) #circuler reference
 # list2(m = matrix(1:12,4,3), nr = nrow(m), nc = ncol(m))
 # list2(x = 1, y = function(k) x * k)
-list2 <- function(..., env = parent.frame()){
-  args.orig <- as.list(match.call(expand.dots=FALSE)$...)
-  simplify <- function(lst) {
-    evaled.lst <- lst
-    for(i in seq_along(args.orig)){
-      evaled.lst <- eval(substitute(substitute(e, args.orig), list(e = evaled.lst)))
+list2 <- function(..., env_ = parent.frame()){
+  args_expr <- as.list(match.call(expand.dots=FALSE)$...)
+  simplify <- function(expr) {
+    expr_evaled <- expr
+    for(i in seq_along(args_expr)){
+      expr_evaled <- eval(substitute(substitute(e, args_expr), list(e = expr_evaled)))
     }
     ## recursive call is costly and slower than `for`
     # make.call <- function(x){
-    #   if(length(x) == 0) return(lst)
-    #   else eval(substitute(substitute(e, args.orig), list(e = make.call(x[-1]))))
+    #   if(length(x) == 0) return(expr)
+    #   else eval(substitute(substitute(e, args_expr), list(e = make.call(x[-1]))))
     # }    
-    # evaled.lst <- make.call(substitute(lst))
-    if(is.call(evaled.lst) && evaled.lst[[1]] != quote(`function`) && 
-      isTRUE(!all(sapply(all.vars(evaled.lst), exists, envir = env))))
+    # expr_evaled <- make.call(substitute(expr))
+    if(is.call(expr_evaled) && expr_evaled[[1]] != quote(`function`) && 
+      isTRUE(!all(vapply(all.vars(expr_evaled), exists, FALSE, envir = env))))
       stop("circulaer reference is not allowed")
-    eval(evaled.lst, args.orig, env)
+    eval(expr_evaled, args_expr, env_)
   }
-  lapply(args.orig, simplify)
+  lapply(args_expr, simplify)
 }
 
 ## The answer keeps as matrix.
