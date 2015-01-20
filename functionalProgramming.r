@@ -330,6 +330,8 @@ flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
 flip_cr <- function(fun) {
   arg1 <- formals(args(fun))
   arg2 <- body(fun)[[2]]
+  stopifnot(is.pairlist(arg1) && is.pairlist(arg2))
+  
   eval(call("function", arg2, call("function", arg1, body(fun)[[3]])), environment(fun))
 }
 
