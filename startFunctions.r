@@ -186,7 +186,7 @@ cd <- function(dir) {
 }
 
 ### get current order of lapply or vapply
-current.order <- function() sys.call(-1)[[2]][[3]]
+current.order <- function() 0L + sys.call(-1)[[2]][[3]]
 current.name <- function() names(eval.parent(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
 # lapply(letters[3:5], function(x) current.order())
 # vapply(letters[3:5], function(x) current.order(), 0)
