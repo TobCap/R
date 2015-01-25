@@ -31,11 +31,6 @@ f. <- function(..., env_ = parent.frame()) {
   eval(call("function", as.formals(d[-n]), d[[n]]), env_)
 }
 
-# f. <- function(..., env_ = parent.frame()){
-#   d <- lapply(substitute(list(...)), identity)[-1]
-#   as.function(c(tools:::as.alist.call(d[-length(d)]), d[length(d)]), envir = env_) 
-# }
-# The above commented code that I made first time is bit slower than the current code.
 # See https://gist.github.com/TobCap/6255804 for comparison of cost of creating funciton.
 # See also https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
 
@@ -56,392 +51,6 @@ f. <- function(..., env_ = parent.frame()) {
 # > f.(y=1, f.(z=2, y+z))()()
 # [1] 3
 
-## goes-to function can check arguments class.
-`%->%` <- function(lhs, rhs, env_ = parent.frame()) {
-  expr <- substitute(lhs)
-  if (length(expr) > 1) {
-    args_expr <- as.vector(expr, "list")[-1]
-  } else if (length(expr) == 1 && class(expr) != "{") {
-    args_expr <- list(expr)
-  } else {
-    args_expr <- NULL
-  }
-  
-  # short-cut for non-class-defined situation
-  if (!any(c(":", "=") %in% all.names(expr)))
-    return(eval(call("function", as.formals(args_expr), substitute(rhs)), env_))
-
-  arglist.converted <- mapply(
-    function(arg_expr, expr_named) {
-      arg_expr_char <- as.character(arg_expr)
-      has_name <- !is.null(expr_named) && nzchar(expr_named)
-      if (!has_name) {
-        if (is.call(arg_expr) && arg_expr[[1]] == quote(`:`)) {
-          ## in case class is defined
-          if (arg_expr_char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
-            arg_expr_new <- as.formals(arg_expr_char[[2]])
-            arg_class <- arg_expr_char[[3]]
-          } else if (tolower(arg_expr_char[[3]]) == "any"){
-            arg_expr_new <- as.formals(arg_expr_char[[2]])
-            arg_class <- NA
-          } else {
-            stop("'", paste0(arg_expr_char[[3]], "' is not appropriate class designation."))
-          }
-        } else if (is.call(arg_expr) && arg_expr[[1]] == quote(`=`)) {
-          ## default value is set
-          arg_expr_new <- as.formals(arg_expr_char[[2]], list(arg_expr[[3]]))
-          arg_class <- class(eval(arg_expr[[3]], env_))
-        } else if (is.symbol(arg_expr)) {
-          ## only a symbol. This allows any class.
-          arg_expr_new <- as.formals(arg_expr_char)
-          arg_class <- NA
-        } else {
-          stop("An argument must be a symbol.")
-        }
-      } else { ## When has_name, assigning value must be able to be evaluate.
-        arg_expr_new <- as.formals(expr_named, list(arg_expr))
-        arg_class <- class(eval(arg_expr, env_))
-      }
-
-      call_of_is_checking <-
-        if (is.na(arg_class)) NULL
-        else call(paste0("is.", arg_class), as.symbol(names(arg_expr_new)))
-
-      list(arg_expr_new = arg_expr_new, call_of_is_checking = call_of_is_checking)
-    }, 
-    args_expr, 
-    rep_len(as.list(names(args_expr)), length(args_expr)),
-    SIMPLIFY = FALSE,
-    USE.NAMES = FALSE
-  )
-
-  arglist <- unlist(lapply(arglist.converted, function(x) x$elem), recursive = FALSE)
-
-  calls_of_is_checking <- lapply(arglist.converted, function(x) x$call_of_is_checking)
-  select_not_NULL <- function(x) x[!vapply(x, is.null, logical(1))]
-  
-  and_bool_expr <- (function(x){
-    n <- length(x)
-    if (n == 0) quote(TRUE)
-    else if (n == 1) x[[1]]
-    else call("&&", Recall(x[-n]), x[[n]])
-  })(select_not_NULL(calls_of_is_checking))
-  #browser()
-  expr_add <-
-    call("if",
-     call("!",
-      call("(", and_bool_expr)),
-        quote(stop("Some inputs are not appropriate.")))
-
-  body_ <-
-    if (all(as.character(expr_add[1:2]) == c("if", "!(TRUE)"))) substitute(rhs)
-    else as.call(append(as.list(substitute(rhs)), expr_add, 1))
-
-  eval(call("function", as.pairlist(arglist), body_), env_)
-}
-
-### The previous simple version (not have class checking insertion) was:
-# `%->%` <- function(lhs, rhs, env_ = parent.frame()){
-#   l <- substitute(lhs)
-#   # coerce list() into NULL by as.pairlist
-#   if (length(l) > 1 || class(l) == "{") l <- as.pairlist(as.vector(l, "list")[-1])
-#   eval(call("function", as.pairlist(tools:::as.alist.call(l)), substitute(rhs)), env_)
-# }
-
-# {} %->% {x + 2}
-# x %->% {x + 1}
-# {x; y} %->% {x + y}
-# {x = 1L; y = 2L} %->% {x + y} 
-# {x:numeric; y:numeric} %->% {x + y}
-# {x:character; e:environment} %->% {get(x, envir = e, inherits = FALSE)}
-## see more examples in https://gist.github.com/TobCap/6826123
-
-curry <- function (fun, env_ = parent.frame()) {
-  has_quoted <- FALSE
-  recursiveCall <- function(len, arg) {
-    if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
-    else function(x) {
-      if (is.language(x)) has_quoted <<- TRUE
-      recursiveCall(len - 1, append(arg, list(x)))}}
-  recursiveCall(length(formals(args(fun))), list())
-}
-# > curry(function(x, y, z) x + y + z)(1)(2)(3)
-# [1] 6
-### `f.` is already defined above and save your typing.
-# > curry(f.(x, y, z, x + y + z))(1)(2)(3)
-# [1] 6
-
-# Arrow operaters defined later are useful.
-# > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
-# [1] 6
-
-# plus2 <- curry(`+`)(2)
-# plus2(10) # 12
-
-## If curried function has dots argument, you can recogize its finish by empty (not NULL) argument just like f().
-# > curry(sum)(1)(2)
-# [1] 3
-# > curry_dots(sum)(1)(2)(NA)(3)()(na.rm = TRUE)
-# [1] 6
-
-# > curry(lapply)(1:5)(function(x) x ^ 2)()
-# Error in ((curry(lapply)(1:5))(function(x) x^2))() : 
-#   argument "x" is missing, with no default
-
-# > curry_dots(lapply)(1:5)(function(x) x ^ 2)()
-# [[1]]
-# [1] 1
-
-# > call("rnorm", 5, 100)
-# rnorm(5, 100)
-# > curry(call)("rnorm")(5)(100)()
-# Error: attempt to apply non-function
-# > curry_dots(call)("rnorm")(5)(100)()
-# rnorm(5, 100)
-
-curry_dots <- function (fun, env_ = parent.frame()) {
-  args_ <- formals(args(fun))
-  has_quoted <- FALSE
-  is_dots <- function(n) names(args_)[length(args_) - n + 1] == "..."
-  
-  recursiveCall <- function(len, arg) {
-    if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
-    else
-      function(...) {
-        x <- list(...)
-        if (is_dots(len)) {
-          if (length(x) == 0) recursiveCall(len - 1, arg)
-          else {
-            if (is.language(x[[1]])) has_quoted <<- TRUE
-            recursiveCall(len, append(arg, as.list(x)))}}
-        else {
-          if (is.language(x[[1]])) has_quoted <<- TRUE
-          recursiveCall(len - 1, append(arg, as.list(x)))}}}
-  recursiveCall(length(args_), list())
-}
-
-# This recursively composes language-tree and is faster than curry(), but only closure is acceptable
-curry_closure <- function(f){
-  stopifnot(is.function(f), typeof(f) == "closure")
-  make_body <- function(args_){
-    if (length(args_) == 0) body(f)
-    else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
-  }
-  eval(make_body(formals(args(f))), environment(f))
-}
-
-# > c1 <- curry(rnorm); c2 <- curry_closure(rnorm)
-# > library(microbenchmark)
-# > microbenchmark(c1(10)(100)(1), c2(10)(100)(1))
-# Unit: microseconds
-#              expr    min      lq median     uq     max neval
-#  (c1(10)(100))(1) 42.796 44.3555 45.025 46.362 145.771   100
-#  (c2(10)(100))(1) 10.700 11.5910 12.037 12.928  19.169   100
-
-# h1 <- curry(rnorm); h1(10)(100)(1)
-# h2 <- curry_closure(rnorm)(10)(100); h2(1)
-# h3 <- curry_closure(D); h3(quote(x^5))("x")
-# h4 <- curry_closure(D)(quote(x^5)); h4("x")
-
-# particial application
-# an undercore symbol `_` is requited to bind variales
-pa <- function(expr, env_ = parent.frame()){
-  all.vars <- all.names(substitute(expr), functions = FALSE)
-  underscores <- all.vars[grep("^\\_$|^\\_[0-9]+$", all.vars)]
-  if (length(underscores) == 0)
-    stop("A binding variable must start with underscore and ends with numeric.")
-  if (anyDuplicated.default(underscores) > 0)
-    stop("Binding variables must be different from each other.")
-  created.formals <- as.formals(underscores[order(underscores)])
-
-  make.body <- function(args_){
-    if (length(args_) == 0) substitute(expr, parent.env(environment()))
-    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
-  }
-  eval(make.body(created.formals), env_)
-}
-# f1 <- pa(`_` * 2); f1(10)
-# f2 <- pa(D(`_`, "x")); f2(quote(x^4))
-# f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
-# 
-# g <- function(x, y, z, w) 1000*x + 100*y + 10*z + 1*w
-# f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
-# f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
-
-cr <- function(f) {
-  call_fun <- 
-    if (any(names(formals(args(f))) == "...")) curry_dots
-    else if (typeof(f) == "closure") curry_closure
-    else curry
-  call_fun(f)
-}
-
-### curried function creator
-`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_), env_ = env_)
-### Address of λ (lambda) in Unicode is U+03BB or \u03BB
-# λ(g, x, g(g(x)))(λ(y, y+1))(5)
-# f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
-# l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
-# l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
-
-### http://www.angelfire.com/tx4/cus/combinator/birds.html
-# S <- f.(x, f.(y, f.(z, (x(z))(y(z)) )))
-# K <- f.(x, f.(y, x))
-# I <- S(K)(K) # == f.(x, x) == identity()
-
-# see https://gist.github.com/TobCap/6255395
-uncurry <- function(fun){ 
-  function(...){
-    rec <- function(f, dots){
-      if (length(dots) == 0) f
-      else rec(f(dots[[1]]), dots[-1])
-    }
-    rec(fun, list(...))
-  }
-}
-# > g <- function(x) function(y) function(z) x + y + z
-# > g(1)(2)(3)
-# [1] 6
-# > uncurry(g)(1, 2, 3)
-# [1] 6
-
-###
-## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
-flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
-  args_new <- args_orig <- formals(args(match.fun(fun)))
-  stopifnot(1 < r, l < length(args_orig), l < r)
-  
-  names(args_new)[c(r, l)] <- names(args_orig)[c(l, r)]
-  args_new[c(r, l)] <- args_orig[c(l, r)]
-  
-  if (typeof(fun) == "closure") {
-    eval(call("function", as.pairlist(args_new), body(fun)), environment(fun))
-  } else { ## special & builtin  
-    fun_sym <- substitute(fun)
-    body_ <- quote({
-      called <- sys.call()
-      called[-1] <- called[-1][c(r, l)]
-      called[[1]] <- fun_sym
-      eval(called, environment(fun))
-    })
-    eval(call("function", as.pairlist(args_new), body_), environment())
-  }
-}
-
-flip_cr <- function(fun) {
-  arg1 <- formals(args(fun))
-  arg2 <- body(fun)[[2]]
-  stopifnot(is.pairlist(arg1) && is.pairlist(arg2))
-  
-  eval(call("function", arg2, call("function", arg1, body(fun)[[3]])), environment(fun))
-}
-
-### examples
-# > flip(`-`)(2, 5)
-# [1] 3
-
-# divBy10 <- curry(flip(`/`))(10)
-# divBy10(24) # == 2.4
-
-# > flip(sapply)(sqrt, 1:4)
-# [1] 1.000000 1.414214 1.732051 2.000000
-
-# > flip(sapply)(round, 1:10/100, 2)
-#  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
-
-# (function(x){
-#   s <- flip(substitute)
-#   print(substitute(x, environment()))
-#   print(s(environment(),x))
-# })(x = 1:5)
-
-# > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
-# > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below.
-# 10 * (9 * (8 * (7 * (6 * x^5))))
-
-# > flip_cr(cr(D))("x")(quote(x^10))
-# 10 * x^9
-
-###
-# fun compares vecter elements next to each other
-.compare <- function(fun, vals) {
-  out.fun <- function(vals){
-    if (length(vals) == 1) TRUE
-    else if (is.na(vals[[1]])) NA
-    else if (!fun(vals[[1]], vals[[2]])) FALSE
-    else out.fun(vals[-1])
-  }
-  out.fun(vals)
-}
-
-.compare.vec <- function(fun, vals, type = c("all", "any")) {
-  all.or.any <- match.fun(match.arg(type))
-  all.or.any(match.fun(fun)(vals[-length(vals)], vals[-1]))
-}
-
-`<.`  <- function(.) .compare(`<` , .) # .compare.vec("<" , .)
-`<=.` <- function(.) .compare(`<=`, .) # .compare.vec("<=", .)
-`>.`  <- function(.) .compare(`>` , .) # .compare.vec("<" , .)
-`>=.` <- function(.) .compare(`>=`, .) # .compare.vec("<=", .)
-`==.` <- function(.) .compare(`==`, .) # .compare.vec("==", .)
-# `!=` is not a transitive relation, so '!=.' cannnot be defined as the same way. 
-
-# `<.`(1:100)
-# `<=.`(c(1:100,99))
-
-.compare.element <- function(vals, default.val){
-  if (length(vals) == 0) default.val
-  else if (is.na(vals[[1]])) NA
-  else if (!vals[[1]] == default.val) !default.val
-  else .compare.element(vals[-1], default.val)
-}
-.all <- function(x) .compare.element(x, TRUE)
-.any <- function(x) .compare.element(x, FALSE)
-
-###
-# avoiding conflict with utils::zip
-# just using mapply()
-zip_ <- function(..., FUN = list) {
-  dots <- list(...)
-  args_seq <- seq_len(min(vapply(dots, length, 0)))
-  args_new <- lapply(dots, function(x) x[args_seq])
-  do.call(mapply, c(FUN = FUN, args_new, SIMPLIFY = FALSE, USE.NAMES = FALSE))
-}
-
-unzip_ <- function(lst, fun = `c`) {
-  do.call(function(...) mapply(fun, ..., SIMPLIFY = FALSE, USE.NAMES = FALSE), lst)
-}
-
-# zip2 <- function(x, y, FUN = list){
-#   if(length(x) == 0 || length(y) == 0) NULL
-#   else append(list(FUN(x[[1]], y[[1]])), zip2(x[-1], y[-1], FUN = FUN))
-# }
-# zip3 <- function(x, y, z, FUN = list){
-#   if(length(x) == 0 || length(y) == 0 || length(z) == 0) NULL
-#   else append(list(FUN(x[[1]], y[[1]]), z[[1]]), zip2(x[-1], y[-1], z[-1], FUN = FUN))
-# }
-# zip_ <- function(... , FUN = list) {
-#   dots <- list(...)
-#   elem.len <- min(vapply(dots, length, 0))
-#   if(elem.len == 0) NULL
-#   else append(
-#     list(do.call(FUN, lapply(dots, `[[`, 1))),
-#     do.call(zip_, c(lapply(dots, `[`, -1), FUN = FUN)))
-# }
-
-zip_with <- function(fun, ..., do_unlist = FALSE) {
-  if (do_unlist) unlist(zip_(..., FUN = match.fun(fun)))
-  else zip_(..., FUN = match.fun(fun))
-}
-
-# zip_(list(1,2,3), list(4,5,6))
-# zip_(1:3, 4:6)
-
-# zip_(list(1,2,3), list(4,5,6), list(7,8,9))
-# zip_(1:3, 4:6, 7:9)
-# zip_.(1:3, letters[1:3])
-
-
 ### Pipeline like operator
 ## Left value can be passed by ".." just like scala's underscore "_".
 ## I use ".."; "." is sometimes used within a model formula expression or other packages as a meaningful symbol.
@@ -449,12 +58,12 @@ zip_with <- function(fun, ..., do_unlist = FALSE) {
 `%|%` <- (function() { 
   two_dots_arg <- as.pairlist(alist(..=))
   
-  function(lhs, rhs, p = parent.frame()) {
+  function(lhs, rhs, env_ = parent.frame()) {
     rhs_expr <- substitute(rhs)
     if (length(rhs_expr) == 1 && is.symbol(rhs_expr)) {
       rhs(lhs) } # shortcut purpose for speedup
     else if (any(all.names(rhs_expr) == "..")) {
-      rhs_closure <- eval(call("function", two_dots_arg, rhs_expr), p)
+      rhs_closure <- eval(call("function", two_dots_arg, rhs_expr), env_)
       rhs_closure(lhs) }
     else {
       rhs(lhs) }
@@ -462,12 +71,13 @@ zip_with <- function(fun, ..., do_unlist = FALSE) {
 })()
 
 ## examples
-## f.() is defined at line 25 in this file.
-# > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
-# [1]  0  1  4  9 16
 # > 1:5 %|% (..-1) %|% (..^2)
 # [1]  0  1  4  9 16
 # > 1:5 %|% {..-1} %|% {..^2}
+# [1]  0  1  4  9 16
+
+## f.() is defined at line 25 in this file.
+# > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
 # [1]  0  1  4  9 16
 
 ### same result
@@ -477,7 +87,7 @@ zip_with <- function(fun, ..., do_unlist = FALSE) {
 # [1] 2 4
 
 # With %|% operator, I think, right assignment is an intuitive way to define a variable
-# > 1:10 %|% ..[..%%2==0] %|% ..^2 -> x %|% '('
+# > 1:10 %|% ..[..%%2==0] %|% ..^2 -> x
 # > x
 # [1]   4  16  36  64 100
 
@@ -554,17 +164,16 @@ zip_with <- function(fun, ..., do_unlist = FALSE) {
 "%<<%" <- function(f, g) function(x) f(g(x)) # backward composition
 compose_ <- function(f, g) function(x) f(g(x)) # rename
 
-# f1 <- f.(x, {cat("f1(x = ", x, ") -> ", sep = ""); x + 1})
-# f2 <- f.(x, {cat("f2(x = ", x, ") -> ", sep = ""); x * 2})
-# f3 <- f.(x, {cat("f3(x = ", x, ") -> ", sep = ""); x / 3})
-# f4 <- f1 %>>% f2 %>>% f3
-# f5 <- f1 %<<% f2 %<<% f3
+# add1 <- f.(x, {cat("add1(x = ", x, ") -> ", sep = ""); x + 1})
+# mul2 <- f.(x, {cat("mul2(x = ", x, ") -> ", sep = ""); x * 2})
+# div3 <- f.(x, {cat("div3(x = ", x, ") -> ", sep = ""); x / 3})
+# f4 <- add1 %>>% mul2 %>>% div3
+# f5 <- add1 %<<% mul2 %<<% div3
 
 # > f4(1)
-# f1(x = 1) -> f2(x = 2) -> f3(x = 4) -> [1] 1.333333
+# add1(x = 1) -> mul2(x = 2) -> div3(x = 4) -> [1] 1.333333
 # > f5(1)
-# f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
-
+# div3(x = 1) -> mul2(x = 0.3333333) -> add1(x = 0.6666667) -> [1] 1.666667
 
 
 ## date passing
@@ -592,8 +201,8 @@ compose_ <- function(f, g) function(x) f(g(x)) # rename
 
 ### invokes interceptor; the idea comes from underscore javascript.
 ### it easy to debug.
-tap <- function(x, fun = print) {
-  fun(x)
+tap <- function(x, fun = print, ...) {
+  fun(x, ...)
   x
 }
 # > 1:10 %|% ..[..%%2==0] %|% tap %|% ..^2
@@ -613,6 +222,231 @@ tap <- function(x, fun = print) {
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
+### currying
+## Arguments are evaluated before passing; it is different from R's semantics.
+## Special functions such as substitute() can not work with curry()
+## > substitute(x, list(x = 1))
+## [1] 1
+## > curry(substitute)(x)(list(x=1))
+## Error in curry(substitute)(x) : object 'x' not found
+curry <- function (fun, env_ = parent.frame()) {
+  has_quoted <- FALSE
+  iter <- function(len, arg) {
+    if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
+    else function(x) {
+      if (is.language(x)) has_quoted <<- TRUE
+      iter(len - 1, append(arg, list(x)))}}
+  iter(length(formals(args(fun))), list())
+}
+
+# > curry(function(x, y, z) x + y + z)(1)(2)(3)
+# [1] 6
+### `f.` is already defined above and save your typing.
+# > curry(f.(x, y, z, x + y + z))(1)(2)(3)
+# [1] 6
+
+# Arrow operaters defined at #Line 154-149 are useful.
+# > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
+# [1] 6
+
+# plus2 <- curry(`+`)(2)
+# plus2(10) # 12
+
+curry_dots <- function (fun, env_ = parent.frame()) {
+  fun_args <- formals(args(fun))
+  has_quoted <- FALSE
+  dots_pos_rev <- which(rev(names(fun_args)) == "...")
+  if (length(dots_pos_rev) == 0) stop("`fun` do not have a dot-dot-dot argument")
+  
+  iter <- function(len, arg) {
+    if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
+    else
+      function(...) {
+        x <- list(...)
+        if (len == dots_pos_rev) {
+          if (length(x) == 0) iter(len - 1, arg)
+          else {
+            if (is.language(x[[1]])) has_quoted <<- TRUE
+            iter(len, append(arg, as.list(x)))}}
+        else {
+          if (is.language(x[[1]])) has_quoted <<- TRUE
+          iter(len - 1, append(arg, as.list(x)))}}}
+  iter(length(fun_args), list())
+}
+
+## If curried function has dots argument, you can recogize its end by empty (not NULL) argument just like f().
+# > curry(sum)(1)(2)(3)
+# Error: attempt to apply non-function
+
+# > curry_dots(sum)(1)(2)(NA)(3)()(na.rm = TRUE)
+# [1] 6
+
+# > curry(lapply)(1:5)(function(x) x ^ 2)()
+# Error in ((curry(lapply)(1:5))(function(x) x^2))() : 
+#   argument "x" is missing, with no default
+
+# > curry_dots(lapply)(1:5)(function(x) x ^ 2)()
+# [[1]]
+# [1] 1
+# 
+
+# > call("rnorm", 5, 100)
+# rnorm(5, 100)
+# > curry(call)("rnorm")(5)(100)()
+# Error: attempt to apply non-function
+# > curry_dots(call)("rnorm")(5)(100)()
+# rnorm(5, 100)
+
+
+# This recursively composes language-tree and is faster than curry(), but only closure is acceptable
+curry_closure <- function(f){
+  stopifnot(is.function(f), typeof(f) == "closure")
+  make_body <- function(args_){
+    if (length(args_) == 0) body(f)
+    else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
+  }
+  eval(make_body(formals(args(f))), environment(f))
+}
+
+# > c1 <- curry(rnorm); c2 <- curry_closure(rnorm)
+# > library(microbenchmark)
+# > microbenchmark(c1(10)(100)(1), c2(10)(100)(1))
+# Unit: microseconds
+#              expr    min      lq median     uq     max neval
+#  (c1(10)(100))(1) 42.796 44.3555 45.025 46.362 145.771   100
+#  (c2(10)(100))(1) 10.700 11.5910 12.037 12.928  19.169   100
+
+# h1 <- curry(rnorm); h1(10)(100)(1)
+# h2 <- curry_closure(rnorm)(10)(100); h2(1)
+# h3 <- curry_closure(D); h3(quote(x^5))("x")
+# h4 <- curry_closure(D)(quote(x^5)); h4("x")
+
+# particial application
+# an undercore symbol `_` is requited to bind variales
+pa <- function(expr, env_ = parent.frame()){
+  all.vars <- all.names(substitute(expr), functions = FALSE)
+  underscores <- all.vars[grep("^\\_$|^\\_[0-9]+$", all.vars)]
+  if (length(underscores) == 0)
+    stop("A binding variable must start with underscore and ends with numeric.")
+  if (anyDuplicated.default(underscores) > 0)
+    stop("Binding variables must be different from each other.")
+  created.formals <- as.formals(underscores[order(underscores)])
+
+  make.body <- function(args_){
+    if (length(args_) == 0) substitute(expr, parent.env(environment()))
+    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+  }
+  eval(make.body(created.formals), env_)
+}
+# f1 <- pa(`_` * 2); f1(10)
+# f2 <- pa(D(`_`, "x")); f2(quote(x^4))
+# f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
+# 
+# g <- function(x, y, z, w) 1000*x + 100*y + 10*z + 1*w
+# f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
+# f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
+
+cr <- function(f) {
+  call_fun <- 
+    if (any(names(formals(args(f))) == "...")) curry_dots
+    else if (typeof(f) == "closure") curry_closure
+    else curry
+  call_fun(f)
+}
+
+# see https://gist.github.com/TobCap/6255395
+uncurry <- function(fun){ 
+  function(...){
+    rec <- function(f, dots){
+      if (length(dots) == 0) f
+      else rec(f(dots[[1]]), dots[-1])
+    }
+    rec(fun, list(...))
+  }
+}
+# > g <- function(x) function(y) function(z) x + y + z
+# > g(1)(2)(3)
+# [1] 6
+# > uncurry(g)(1, 2, 3)
+# [1] 6
+
+###
+## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
+flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
+  args_new <- args_orig <- formals(args(match.fun(fun)))
+  stopifnot(1 < r, l < length(args_orig), l < r)
+  
+  names(args_new)[c(r, l)] <- names(args_orig)[c(l, r)]
+  args_new[c(r, l)] <- args_orig[c(l, r)]
+  
+  if (typeof(fun) == "closure") {
+    eval(call("function", as.pairlist(args_new), body(fun)), environment(fun))
+  } else { ## special & builtin  
+    fun_sym <- substitute(fun)
+    body_ <- quote({
+      called <- sys.call()
+      called[-1] <- called[-1][c(r, l)]
+      called[[1]] <- fun_sym
+      eval(called, parent.frame(), environment(fun))
+    })
+    eval(call("function", as.pairlist(args_new), body_), environment())
+  }
+}
+
+flip_cr <- function(fun) {
+  arg1 <- formals(args(fun))
+  arg2 <- body(fun)[[2]]
+  stopifnot(is.pairlist(arg1) && is.pairlist(arg2))
+  
+  eval(call("function", arg2, call("function", arg1, body(fun)[[3]])), environment(fun))
+}
+
+### examples
+# > flip(`-`)(2, 5)
+# [1] 3
+
+# divBy10 <- curry(flip(`/`))(10)
+# divBy10(24) # == 2.4
+
+# > flip(sapply)(sqrt, 1:4)
+# [1] 1.000000 1.414214 1.732051 2.000000
+
+# > flip(sapply)(round, 1:10/100, 2)
+#  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
+
+# (function(x){
+#   s <- flip(substitute)
+#   print(substitute(x, environment()))
+#   print(s(environment(),x))
+# })(1:5)
+
+# > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
+# > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below.
+# 10 * (9 * (8 * (7 * (6 * x^5))))
+
+# > flip_cr(cr(D))("x")(quote(x^10))
+# 10 * x^9
+
+### curried function creator
+`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_), env_ = env_)
+### Address of λ (lambda) in Unicode is U+03BB or \u03BB
+# λ(g, x, g(g(x)))(λ(y, y+1))(5)
+# f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
+# l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
+# l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
+
+### http://www.angelfire.com/tx4/cus/combinator/birds.html
+# S <- f.(x, f.(y, f.(z, (x(z))(y(z)) )))
+# K <- f.(x, f.(y, x))
+# I <- S(K)(K) # == f.(x, x) == identity()
+
+# http://en.wikipedia.org/wiki/Fixed-point_combinator
+# http://upload.wikimedia.org/math/9/c/c/9ccb07cb4f99bef41be7043990ac5eb3.png
+# Y <- λ(f, (λ(x, f(x(x))))(λ(x, f(x(x)))))
+## compare above express with the definition written in png file!
+# fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
+# Y(fib_maker)(10) # => 55
+
 ### see the calculation processes at https://gist.github.com/TobCap/6668817
 ### fixed-point combinator
 ### R can write very simply
@@ -631,15 +465,15 @@ fix_ <- function(g) f <- g(f)
 ### Y = λf.(λx.f (x x)) (λx.f (x x))
 ### Z = λf.(λx.f (λy. x x y)) (λx.f (λy. x x y))
 
-# > mult.maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
-# > microbenchmark(fix0(mult.maker)(100),fix1(mult.maker)(100),fix2(mult.maker)(100), fix3(mult.maker)(100), fix4(mult.maker)(100))
+# > mult_maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
+# > microbenchmark(fix0(mult_maker)(100),fix1(mult_maker)(100),fix2(mult_maker)(100), fix3(mult_maker)(100), fix4(mult_maker)(100))
 # Unit: microseconds
 #                   expr      min        lq   median        uq      max neval
-#  fix0(mult.maker)(100)  499.726  505.2985  509.088  522.4610  824.258   100
-#  fix1(mult.maker)(100)  853.234  878.4210  887.336  923.4455 2320.313   100
-#  fix2(mult.maker)(100)  871.065  889.7885  899.150  920.3245 2251.663   100
-#  fix3(mult.maker)(100) 1114.910 1136.3075 1151.688 1226.8025 2951.100   100
-#  fix4(mult.maker)(100) 1115.802 1138.3135 1153.693 1195.8200 2729.991   100
+#  fix0(mult_maker)(100)  499.726  505.2985  509.088  522.4610  824.258   100
+#  fix1(mult_maker)(100)  853.234  878.4210  887.336  923.4455 2320.313   100
+#  fix2(mult_maker)(100)  871.065  889.7885  899.150  920.3245 2251.663   100
+#  fix3(mult_maker)(100) 1114.910 1136.3075 1151.688 1226.8025 2951.100   100
+#  fix4(mult_maker)(100) 1115.802 1138.3135 1153.693 1195.8200 2729.991   100
 
 ### refers to javascript.
 ### http://www.kmonos.net/wlog/52.php
@@ -746,7 +580,6 @@ fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## U <- function(f) f(f)
 ## fib.u <- function(f) function(n) if(n <= 1) n else f(f)(n - 1)  + f(f)(n - 2)
 ## U(fib.u)(10)
-### Is there a memoise function for U combinator?
 
 ### language object operater
 ## promise_tracker can track promise's original symbol

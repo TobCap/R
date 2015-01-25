@@ -354,3 +354,171 @@ address2 <- function(...){
   # the result of inspect(x) indicates that NAM is converted from 1 to 2.
   capture.output.cat(inspect(...))
 }
+
+
+
+## goes-to function can check arguments class.
+`%->%` <- function(lhs, rhs, env_ = parent.frame()) {
+  as.formals <- function(xs) as.pairlist(tools:::as.alist.call(xs))
+
+  expr <- substitute(lhs)
+  if (length(expr) > 1) {
+    args_expr <- as.vector(expr, "list")[-1]
+  } else if (length(expr) == 1 && class(expr) != "{") {
+    args_expr <- list(expr)
+  } else {
+    args_expr <- NULL
+  }
+  
+  # short-cut for non-class-defined situation
+  if (!any(c(":", "=") %in% all.names(expr)))
+    return(eval(call("function", as.formals(args_expr), substitute(rhs)), env_))
+
+  arglist.converted <- mapply(
+    function(arg_expr, expr_named) {
+      arg_expr_char <- as.character(arg_expr)
+      has_name <- !is.null(expr_named) && nzchar(expr_named)
+      if (!has_name) {
+        if (is.call(arg_expr) && arg_expr[[1]] == quote(`:`)) {
+          ## in case class is defined
+          if (arg_expr_char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
+            arg_expr_new <- as.formals(arg_expr_char[[2]])
+            arg_class <- arg_expr_char[[3]]
+          } else if (tolower(arg_expr_char[[3]]) == "any"){
+            arg_expr_new <- as.formals(arg_expr_char[[2]])
+            arg_class <- NA
+          } else {
+            stop("'", paste0(arg_expr_char[[3]], "' is not appropriate class designation."))
+          }
+        } else if (is.call(arg_expr) && arg_expr[[1]] == quote(`=`)) {
+          ## default value is set
+          arg_expr_new <- as.formals(`names<-`(list(arg_expr[[3]]), arg_expr_char[[2]]))
+          arg_class <- class(eval(arg_expr[[3]], env_))
+        } else if (is.symbol(arg_expr)) {
+          ## only a symbol. This allows any class.
+          arg_expr_new <- as.formals(arg_expr_char)
+          arg_class <- NA
+        } else {
+          stop("An argument must be a symbol.")
+        }
+      } else { ## When has_name, assigning value must be able to be evaluate.
+        arg_expr_new <- as.formals(expr_named, list(arg_expr))
+        arg_class <- class(eval(arg_expr, env_))
+      }
+
+      call_of_is_checking <-
+        if (is.na(arg_class)) NULL
+        else call(paste0("is.", arg_class), as.symbol(names(arg_expr_new)))
+
+      list(arg_expr_new = arg_expr_new, call_of_is_checking = call_of_is_checking)
+    }, 
+    args_expr, 
+    rep_len(as.list(names(args_expr)), length(args_expr)),
+    SIMPLIFY = FALSE,
+    USE.NAMES = FALSE
+  )
+
+  arglist <- unlist(lapply(arglist.converted, function(x) x$arg_expr_new), recursive = FALSE)
+  calls_of_is_checking <- lapply(arglist.converted, function(x) x$call_of_is_checking)
+  select_not_NULL <- function(x) x[!vapply(x, is.null, logical(1))]
+  
+  and_bool_expr <- (function(x){
+    n <- length(x)
+    if (n == 0) quote(TRUE)
+    else if (n == 1) x[[1]]
+    else call("&&", Recall(x[-n]), x[[n]])
+  })(select_not_NULL(calls_of_is_checking))
+
+  expr_add <-
+    call("if",
+     call("!",
+      call("(", and_bool_expr)),
+        quote(stop("Some inputs are not appropriate.")))
+
+  body_ <-
+    if (all(as.character(expr_add[1:2]) == c("if", "!(TRUE)"))) substitute(rhs)
+    else as.call(append(as.list(substitute(rhs)), expr_add, 1))
+
+  eval(call("function", as.pairlist(arglist), body_), env_)
+}
+
+# {} %->% {x + 2}
+# x %->% {x + 1}
+# {x; y} %->% {x + y}
+# {x = 1L; y = 2L} %->% {x + y}
+# {x:numeric; y:numeric} %->% {x + y}
+# {x:character; e:environment} %->% {get(x, envir = e, inherits = FALSE)}
+## see more examples in https://gist.github.com/TobCap/6826123
+
+
+## fun compares vecter elements next to each other
+compare_ <- function(fun, vals) {
+  iter <- function(vals){
+    if (length(vals) == 1) TRUE
+    else if (is.na(vals[[1]])) NA
+    else if (!fun(vals[[1]], vals[[2]])) FALSE
+    else out.fun(vals[-1])
+  }
+  iter(vals)
+}
+
+compare_vec <- function(fun) function(xs) {
+  n <- length(xs)
+  if (!is.atomic(xs)) xs <- unlist(xs, recursive = FALSE)
+  all(fun(xs[-n], xs[-1]))
+}
+
+`<.`  <- compare_vec(`<`)
+`<=.` <- compare_vec(`<=`)
+`>.`  <- compare_vec(`>`)
+`>=.` <- compare_vec(`>=`)
+`==.` <- compare_vec(`==`)
+## `!=` is not a transitive relation, so '!=.' cannnot be defined as the same way. 
+
+# `<.`(1:100)
+# `<=.`(c(1:100,99))
+
+###
+# avoiding conflict with utils::zip
+# just using mapply()
+zip_ <- function(..., FUN = list) {
+  dots <- as.list(...)
+  args_seq <- seq_len(min(vapply(dots, length, 0)))
+  args_new <- lapply(dots, function(x) x[args_seq])
+  do.call(mapply, c(FUN = FUN, args_new, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+}
+
+unzip_ <- function(lst, fun = `c`) {
+  do.call(function(...) mapply(fun, ..., SIMPLIFY = FALSE, USE.NAMES = FALSE), lst)
+}
+
+# zip_(list(1,2,3), list(4,5,6))
+# zip_(1:3, 4:6)
+
+# zip_(list(1,2,3), list(4,5,6), list(7,8,9))
+# zip_(1:3, 4:6, 7:9)
+# zip_(1:3, letters[1:3])
+
+# zip2 <- function(x, y, FUN = list){
+#   if(length(x) == 0 || length(y) == 0) NULL
+#   else append(list(FUN(x[[1]], y[[1]])), zip2(x[-1], y[-1], FUN = FUN))
+# }
+# zip3 <- function(x, y, z, FUN = list){
+#   if(length(x) == 0 || length(y) == 0 || length(z) == 0) NULL
+#   else append(list(FUN(x[[1]], y[[1]]), z[[1]]), zip2(x[-1], y[-1], z[-1], FUN = FUN))
+# }
+# zip_ <- function(... , FUN = list) {
+#   dots <- list(...)
+#   elem.len <- min(vapply(dots, length, 0))
+#   if(elem.len == 0) NULL
+#   else append(
+#     list(do.call(FUN, lapply(dots, `[[`, 1))),
+#     do.call(zip_, c(lapply(dots, `[`, -1), FUN = FUN)))
+# }
+
+zip_with <- function(fun, ..., do_unlist = FALSE) {
+  if (do_unlist) unlist(zip_(..., FUN = match.fun(fun)))
+  else zip_(..., FUN = match.fun(fun))
+}
+# zip_with(`+`, list(1, 2), list(11, 12))
+# zip_with(paste0, c("a", "b"), list(11, 12))
