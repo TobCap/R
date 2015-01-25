@@ -60,85 +60,86 @@ f. <- function(..., env_ = parent.frame()) {
 `%->%` <- function(lhs, rhs, env_ = parent.frame()) {
   expr <- substitute(lhs)
   if (length(expr) > 1) {
-    arglist.raw <- as.vector(expr, "list")[-1]
+    args_expr <- as.vector(expr, "list")[-1]
   } else if (length(expr) == 1 && class(expr) != "{") {
-    arglist.raw <- list(expr)
+    args_expr <- list(expr)
   } else {
-    arglist.raw <- NULL
+    args_expr <- NULL
   }
   
   # short-cut for non-class-defined situation
   if (!any(c(":", "=") %in% all.names(expr)))
-    return(eval(call("function", as.formals(arglist.raw), substitute(rhs)), env_))
+    return(eval(call("function", as.formals(args_expr), substitute(rhs)), env_))
 
   arglist.converted <- mapply(
-    function(x, name) {
-      x.char <- as.character(x)
-      has.name <- !is.null(name) && nzchar(name)
-      if (!has.name) {
-        if (is.call(x) && x[[1]] == quote(`:`)) {
+    function(arg_expr, expr_named) {
+      arg_expr_char <- as.character(arg_expr)
+      has_name <- !is.null(expr_named) && nzchar(expr_named)
+      if (!has_name) {
+        if (is.call(arg_expr) && arg_expr[[1]] == quote(`:`)) {
           ## in case class is defined
-          if (x.char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
-            elem <- as.formals(x.char[[2]])
-            class_ <- x.char[[3]]
-          } else if (tolower(x.char[[3]]) == "any"){
-            elem <- as.formals(x.char[[2]])
-            class_ <- NA
+          if (arg_expr_char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
+            arg_expr_new <- as.formals(arg_expr_char[[2]])
+            arg_class <- arg_expr_char[[3]]
+          } else if (tolower(arg_expr_char[[3]]) == "any"){
+            arg_expr_new <- as.formals(arg_expr_char[[2]])
+            arg_class <- NA
           } else {
-            stop("'", paste0(x.char[[3]], "' is not appropriate class designation."))
+            stop("'", paste0(arg_expr_char[[3]], "' is not appropriate class designation."))
           }
-        } else if (is.call(x) && x[[1]] == quote(`=`)) {
+        } else if (is.call(arg_expr) && arg_expr[[1]] == quote(`=`)) {
           ## default value is set
-          elem <- as.formals(x.char[[2]], list(x[[3]]))
-          class_ <- class(eval(x[[3]], env_))
-        } else if (is.symbol(x)) {
-          ## only a symbol. It allows any class.
-          elem <- as.formals(x.char)
-          class_ <- NA
+          arg_expr_new <- as.formals(arg_expr_char[[2]], list(arg_expr[[3]]))
+          arg_class <- class(eval(arg_expr[[3]], env_))
+        } else if (is.symbol(arg_expr)) {
+          ## only a symbol. This allows any class.
+          arg_expr_new <- as.formals(arg_expr_char)
+          arg_class <- NA
         } else {
           stop("An argument must be a symbol.")
         }
-      } else { ## When has.name, assigning value must be able to be evaluate.
-        elem <- as.formals(name, list(x))
-        class_ <- class(eval(x, env_))
+      } else { ## When has_name, assigning value must be able to be evaluate.
+        arg_expr_new <- as.formals(expr_named, list(arg_expr))
+        arg_class <- class(eval(arg_expr, env_))
       }
 
-      check.fun <-
-        if (is.na(class_)) NULL
-        else call(paste0("is.", class_), as.symbol(names(elem)))
+      call_of_is_checking <-
+        if (is.na(arg_class)) NULL
+        else call(paste0("is.", arg_class), as.symbol(names(arg_expr_new)))
 
-      list(elem = elem, check.fun = check.fun)
+      list(arg_expr_new = arg_expr_new, call_of_is_checking = call_of_is_checking)
     }, 
-    arglist.raw, 
-    rep_len(as.list(names(arglist.raw)), length(arglist.raw)),
+    args_expr, 
+    rep_len(as.list(names(args_expr)), length(args_expr)),
     SIMPLIFY = FALSE,
     USE.NAMES = FALSE
   )
 
   arglist <- unlist(lapply(arglist.converted, function(x) x$elem), recursive = FALSE)
 
-  check.funs <- lapply(arglist.converted, function(x) x$check.fun)
-  rm.null.element <- function(x) x[!vapply(x, is.null, logical(1))]
+  calls_of_is_checking <- lapply(arglist.converted, function(x) x$call_of_is_checking)
+  select_not_NULL <- function(x) x[!vapply(x, is.null, logical(1))]
   
-  check.call <- (function(x){
+  and_bool_expr <- (function(x){
     n <- length(x)
     if (n == 0) quote(TRUE)
     else if (n == 1) x[[1]]
     else call("&&", Recall(x[-n]), x[[n]])
-  })(rm.null.element(check.funs))
-
-  expr.add <-
+  })(select_not_NULL(calls_of_is_checking))
+  #browser()
+  expr_add <-
     call("if",
      call("!",
-      call("(", check.call)),
+      call("(", and_bool_expr)),
         quote(stop("Some inputs are not appropriate.")))
 
   body_ <-
-    if (all(as.character(expr.add[1:2]) == c("if", "!(TRUE)"))) substitute(rhs)
-    else as.call(append(as.list(substitute(rhs)), expr.add, 1))
+    if (all(as.character(expr_add[1:2]) == c("if", "!(TRUE)"))) substitute(rhs)
+    else as.call(append(as.list(substitute(rhs)), expr_add, 1))
 
   eval(call("function", as.pairlist(arglist), body_), env_)
 }
+
 ### The previous simple version (not have class checking insertion) was:
 # `%->%` <- function(lhs, rhs, env_ = parent.frame()){
 #   l <- substitute(lhs)
