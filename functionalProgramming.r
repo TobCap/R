@@ -408,6 +408,10 @@ zip_ <- function(..., FUN = list) {
   do.call(mapply, c(FUN = FUN, args_new, SIMPLIFY = FALSE, USE.NAMES = FALSE))
 }
 
+unzip_ <- function(lst, fun = `c`) {
+  do.call(function(...) mapply(fun, ..., SIMPLIFY = FALSE, USE.NAMES = FALSE), lst)
+}
+
 # zip2 <- function(x, y, FUN = list){
 #   if(length(x) == 0 || length(y) == 0) NULL
 #   else append(list(FUN(x[[1]], y[[1]])), zip2(x[-1], y[-1], FUN = FUN))
