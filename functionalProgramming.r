@@ -384,7 +384,7 @@ flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
       called <- sys.call()
       called[-1] <- called[-1][c(r, l)]
       called[[1]] <- fun_sym
-      eval(called, environment(fun))
+      eval(called, parent.frame(), environment(fun))
     })
     eval(call("function", as.pairlist(args_new), body_), environment())
   }
@@ -415,7 +415,7 @@ flip_cr <- function(fun) {
 #   s <- flip(substitute)
 #   print(substitute(x, environment()))
 #   print(s(environment(),x))
-# })(x = 1:5)
+# })(1:5)
 
 # > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below.
