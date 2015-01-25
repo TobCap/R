@@ -14,7 +14,7 @@ unpipe <- function(expr) {
     else if (is.symbol(rhs) || rhs[[1]] == "function" || rhs[[1]] == "(") {
       as.call(c(rhs, lhs)) }
     else if (is.call(rhs)) {
-      as.call(c(rhs[[1]], lhs, lapply(rhs[-1], identity))) }
+      as.call(c(rhs[[1]], lhs, as.list(rhs[-1]))) }
     else {
       stop("missing condition error") }
   }
