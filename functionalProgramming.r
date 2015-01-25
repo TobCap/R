@@ -71,12 +71,13 @@ f. <- function(..., env_ = parent.frame()) {
 })()
 
 ## examples
-## f.() is defined at line 25 in this file.
-# > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
-# [1]  0  1  4  9 16
 # > 1:5 %|% (..-1) %|% (..^2)
 # [1]  0  1  4  9 16
 # > 1:5 %|% {..-1} %|% {..^2}
+# [1]  0  1  4  9 16
+
+## f.() is defined at line 25 in this file.
+# > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
 # [1]  0  1  4  9 16
 
 ### same result
@@ -86,7 +87,7 @@ f. <- function(..., env_ = parent.frame()) {
 # [1] 2 4
 
 # With %|% operator, I think, right assignment is an intuitive way to define a variable
-# > 1:10 %|% ..[..%%2==0] %|% ..^2 -> x %|% '('
+# > 1:10 %|% ..[..%%2==0] %|% ..^2 -> x
 # > x
 # [1]   4  16  36  64 100
 
@@ -163,16 +164,17 @@ f. <- function(..., env_ = parent.frame()) {
 "%<<%" <- function(f, g) function(x) f(g(x)) # backward composition
 compose_ <- function(f, g) function(x) f(g(x)) # rename
 
-# f1 <- f.(x, {cat("f1(x = ", x, ") -> ", sep = ""); x + 1})
-# f2 <- f.(x, {cat("f2(x = ", x, ") -> ", sep = ""); x * 2})
-# f3 <- f.(x, {cat("f3(x = ", x, ") -> ", sep = ""); x / 3})
-# f4 <- f1 %>>% f2 %>>% f3
-# f5 <- f1 %<<% f2 %<<% f3
+# add1 <- f.(x, {cat("add1(x = ", x, ") -> ", sep = ""); x + 1})
+# mul2 <- f.(x, {cat("mul2(x = ", x, ") -> ", sep = ""); x * 2})
+# div3 <- f.(x, {cat("div3(x = ", x, ") -> ", sep = ""); x / 3})
+# f4 <- add1 %>>% mul2 %>>% div3
+# f5 <- add1 %<<% mul2 %<<% div3
 
 # > f4(1)
-# f1(x = 1) -> f2(x = 2) -> f3(x = 4) -> [1] 1.333333
+# add1(x = 1) -> mul2(x = 2) -> div3(x = 4) -> [1] 1.333333
 # > f5(1)
-# f3(x = 1) -> f2(x = 0.3333333) -> f1(x = 0.6666667) -> [1] 1.666667
+# div3(x = 1) -> mul2(x = 0.3333333) -> add1(x = 0.6666667) -> [1] 1.666667
+
 
 ## date passing
 `<--` <- function(...){
@@ -243,7 +245,7 @@ curry <- function (fun, env_ = parent.frame()) {
 # > curry(f.(x, y, z, x + y + z))(1)(2)(3)
 # [1] 6
 
-# Arrow operaters defined later are useful.
+# Arrow operaters defined at #Line 154-149 are useful.
 # > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
 # [1] 6
 
@@ -286,6 +288,7 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 # > curry_dots(lapply)(1:5)(function(x) x ^ 2)()
 # [[1]]
 # [1] 1
+# 
 
 # > call("rnorm", 5, 100)
 # rnorm(5, 100)
@@ -440,6 +443,7 @@ flip_cr <- function(fun) {
 # http://en.wikipedia.org/wiki/Fixed-point_combinator
 # http://upload.wikimedia.org/math/9/c/c/9ccb07cb4f99bef41be7043990ac5eb3.png
 # Y <- λ(f, (λ(x, f(x(x))))(λ(x, f(x(x)))))
+## compare above express with the definition written in png file!
 # fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # Y(fib_maker)(10) # => 55
 
@@ -461,15 +465,15 @@ fix_ <- function(g) f <- g(f)
 ### Y = λf.(λx.f (x x)) (λx.f (x x))
 ### Z = λf.(λx.f (λy. x x y)) (λx.f (λy. x x y))
 
-# > mult.maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
-# > microbenchmark(fix0(mult.maker)(100),fix1(mult.maker)(100),fix2(mult.maker)(100), fix3(mult.maker)(100), fix4(mult.maker)(100))
+# > mult_maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
+# > microbenchmark(fix0(mult_maker)(100),fix1(mult_maker)(100),fix2(mult_maker)(100), fix3(mult_maker)(100), fix4(mult_maker)(100))
 # Unit: microseconds
 #                   expr      min        lq   median        uq      max neval
-#  fix0(mult.maker)(100)  499.726  505.2985  509.088  522.4610  824.258   100
-#  fix1(mult.maker)(100)  853.234  878.4210  887.336  923.4455 2320.313   100
-#  fix2(mult.maker)(100)  871.065  889.7885  899.150  920.3245 2251.663   100
-#  fix3(mult.maker)(100) 1114.910 1136.3075 1151.688 1226.8025 2951.100   100
-#  fix4(mult.maker)(100) 1115.802 1138.3135 1153.693 1195.8200 2729.991   100
+#  fix0(mult_maker)(100)  499.726  505.2985  509.088  522.4610  824.258   100
+#  fix1(mult_maker)(100)  853.234  878.4210  887.336  923.4455 2320.313   100
+#  fix2(mult_maker)(100)  871.065  889.7885  899.150  920.3245 2251.663   100
+#  fix3(mult_maker)(100) 1114.910 1136.3075 1151.688 1226.8025 2951.100   100
+#  fix4(mult_maker)(100) 1115.802 1138.3135 1153.693 1195.8200 2729.991   100
 
 ### refers to javascript.
 ### http://www.kmonos.net/wlog/52.php
