@@ -61,7 +61,7 @@ f. <- function(..., env_ = parent.frame()) {
   expr <- substitute(lhs)
   if (length(expr) > 1) {
     arglist.raw <- as.vector(expr, "list")[-1]
-  } else if (length(expr) == 1 && expr != quote(`{`)) {
+  } else if (length(expr) == 1 && class(expr) != "{") {
     arglist.raw <- list(expr)
   } else {
     arglist.raw <- NULL
