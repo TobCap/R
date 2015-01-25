@@ -58,6 +58,8 @@ f. <- function(..., env_ = parent.frame()) {
 
 ## goes-to function can check arguments class.
 `%->%` <- function(lhs, rhs, env_ = parent.frame()) {
+  as.formals <- function(xs) as.pairlist(tools:::as.alist.call(xs))
+
   expr <- substitute(lhs)
   if (length(expr) > 1) {
     args_expr <- as.vector(expr, "list")[-1]
@@ -89,7 +91,7 @@ f. <- function(..., env_ = parent.frame()) {
           }
         } else if (is.call(arg_expr) && arg_expr[[1]] == quote(`=`)) {
           ## default value is set
-          arg_expr_new <- as.formals(arg_expr_char[[2]], list(arg_expr[[3]]))
+          arg_expr_new <- as.formals(`names<-`(list(arg_expr[[3]]), arg_expr_char[[2]]))
           arg_class <- class(eval(arg_expr[[3]], env_))
         } else if (is.symbol(arg_expr)) {
           ## only a symbol. This allows any class.
@@ -115,8 +117,7 @@ f. <- function(..., env_ = parent.frame()) {
     USE.NAMES = FALSE
   )
 
-  arglist <- unlist(lapply(arglist.converted, function(x) x$elem), recursive = FALSE)
-
+  arglist <- unlist(lapply(arglist.converted, function(x) x$arg_expr_new), recursive = FALSE)
   calls_of_is_checking <- lapply(arglist.converted, function(x) x$call_of_is_checking)
   select_not_NULL <- function(x) x[!vapply(x, is.null, logical(1))]
   
@@ -126,7 +127,7 @@ f. <- function(..., env_ = parent.frame()) {
     else if (n == 1) x[[1]]
     else call("&&", Recall(x[-n]), x[[n]])
   })(select_not_NULL(calls_of_is_checking))
-  #browser()
+
   expr_add <-
     call("if",
      call("!",
@@ -151,7 +152,7 @@ f. <- function(..., env_ = parent.frame()) {
 # {} %->% {x + 2}
 # x %->% {x + 1}
 # {x; y} %->% {x + y}
-# {x = 1L; y = 2L} %->% {x + y} 
+# {x = 1L; y = 2L} %->% {x + y}
 # {x:numeric; y:numeric} %->% {x + y}
 # {x:character; e:environment} %->% {get(x, envir = e, inherits = FALSE)}
 ## see more examples in https://gist.github.com/TobCap/6826123
