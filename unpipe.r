@@ -42,7 +42,15 @@ unpipe <- function(expr) {
 }
 
 ###
-# http://cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html
+## see  
+## http://cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html
+
+## those are old magrittr's examples
+## unzip this file and extract and see a vignette file.
+## http://cran.r-project.org/src/contrib/Archive/magrittr/magrittr_1.0.0.tar.gz
+
+## unpipe() does not support new features of magrittr such as creating a unary function.
+
 # install.packages("magrittr")
 library("magrittr")
 exam1 <- quote(
