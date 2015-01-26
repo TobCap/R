@@ -72,7 +72,7 @@ exam2 <- quote(
 #     transform(airquality, Date = as.Date(paste(1973, Month, Day, 
 #         sep = "-"))), mean), Wind > 12, c(Ozone, Solar.R, Wind)))
 
-{eval(exam2); eval(exam2_)}
+identical(eval(exam2), eval(exam2_))
 #      Ozone  Solar.R     Wind
 # 2 15.40000 192.6000 12.28000
 # 3 18.14286 203.4286 12.45714
@@ -81,6 +81,7 @@ exam2 <- quote(
 # 2 15.40000 192.6000 12.28000
 # 3 18.14286 203.4286 12.45714
 # 7 27.00000 207.6667 14.53333
+# [1] TRUE
 
 exam3 <- quote(
   windy.weeks %>%
@@ -107,37 +108,23 @@ exam6 <- quote(
   rnorm(1000)    %>%
   multiply_by(5) %>%
   add(5)         %>%
-  function(x) {
+  (function(x) {
     cat("Mean:",     x %>% mean, 
         "Variance:", x %>% var,  "\n")
-  }
+  })
 )
 (exam6_ <- unpipe(exam6))
 # (function(x) {
 #     cat("Mean:", mean(x), "Variance:", var(x), "\n")
 # })(add(multiply_by(rnorm(1000), 5), 5))
 
-### Current CRAN version has a bug when using anonymous function without wrapping by `(`
 { 
   set.seed(6); eval(exam6);
   set.seed(6); eval(exam6_)
 }
-# Mean: 5.006678 Variance: 24.57369 
-# Mean: 4.873632 Variance: 25.47606  
 
-## Use the latest version at github
-## library(devtools)
-## install_github("smbache/magrittr")
-{ 
-  set.seed(6); eval(exam6);
-  set.seed(6); eval(exam6_)
-}
 # Mean: 4.873632 Variance: 25.47606 
 # Mean: 4.873632 Variance: 25.47606 
-# Warning message:
-# In rnorm(1000) %>% multiply_by(5) %>% add(5) %>% function(x) { :
-#   Using anonymous functions without enclosing parentheses has been deprecated.
-# Current call has been altered, but please change your code.
 
 
 ### Evaluation of unpiped syntax is faster than using %>%, but some cases
