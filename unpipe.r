@@ -1,4 +1,4 @@
-unpipe <- function(expr) {
+unpipe <- function(expr, eval_ = FALSE) {
   pipe_sym <- c("%>%", "%>>%")
   
   cnv <- function(x) {
@@ -38,7 +38,11 @@ unpipe <- function(expr) {
       function(x) length(x) == 3 && as.character(x[[1]]) %in% pipe_sym,
       function(x) cnv(x) ) }
   
-  expand_pipe(expr)    
+  target <- if (is.symbol(tmp <- substitute(expr))) expr else tmp
+  
+  if (eval_) eval(expand_pipe(target), parent.frame())
+  else expand_pipe(target)
+  
 }
 
 ###
