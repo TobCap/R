@@ -1,4 +1,4 @@
-### correspondence
+### correspondences
 ## Basic piping: ok
 ## The argument placeholder: ok
 ## Re-using the placeholder for attributes: ok
@@ -7,7 +7,6 @@
 ## Tee operations: not support
 ## Pipe with exposition of variables: not support
 ## Compound assignment pipe operations: not support
-
 
 unpipe <- function(expr_, eval_ = FALSE) { 
   ops <- c("%>%")
@@ -152,7 +151,7 @@ unpipe(
 #     else car_data
 # }
 
-# need to be lambda to cache random values
+# if there is more than two dot placeholders, rhs needs to be passed by lambda.
 unpipe(
   rnorm(1000)    %>%
   multiply_by(5) %>%
