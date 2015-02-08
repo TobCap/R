@@ -10,10 +10,27 @@
 
 unpipe <- function(expr_, eval_ = FALSE) { 
   ops <- c("%>%")
+  var_names <- c()
   
   build_fun <- function(lst) {
     make_lambda <- function(body_) {
       call("function", as.pairlist(alist(.=)), iter(body_))
+    }
+
+    assign_temp_var <- function(expr_next, expr_prev) {
+      new_var <- make_var_name(tail(var_names, 1))
+      var_names <<- append(var_names, new_var)
+      new_sym <- as.symbol(new_var)
+      
+      as.call(c(
+        quote(`{`), 
+        as.call(list(quote(`<-`), new_sym, expr_prev)), 
+        as.list(replace_dot(expr_next, new_sym)) ))
+    }
+    
+    make_var_name <- function(name) {
+      if (length(name) == 0) "tmp0"
+      else paste0("tmp", 1 + as.numeric(sub("tmp", "", name)))
     }
     
     replace_dot <- function(x, expr_new) {
@@ -37,8 +54,8 @@ unpipe <- function(expr_, eval_ = FALSE) {
       
       if (length(direct_dot_pos) > 0) wrap(lst[-1], as.call(replace_direct_dot(expr, acc)))
       else if (is.symbol(expr) || class(expr) == "(") wrap(lst[-1], as.call(c(expr, acc)))
-      else if (expr[[1]] == "{" && length(expr) == 2) wrap(lst[-1], replace_dot(expr, acc))
-      else if (expr[[1]] == "{" && length(expr) >= 3) wrap(lst[-1], as.call(c(make_lambda(expr), acc)))
+      else if (expr[[1]] == "{" && length(expr) == 2) wrap(lst[-1], replace_dot(expr[[2]], acc))
+      else if (expr[[1]] == "{" && length(expr) >= 3) wrap(lst[-1], assign_temp_var(expr[-1], acc))
       else wrap(lst[-1], as.call(c(expr[[1]], acc, lapply(expr[-1], replace_dot, acc))))
     }
 
@@ -82,12 +99,8 @@ unpipe(x %>% f(y, z = .))
 
 unpipe(x %>% f(y = nrow(.), z = ncol(.)))
 # f(x, y = nrow(x), z = ncol(x))
-
-### syntax is different but semantics is the same
 unpipe(x %>% {f(y = nrow(.), z = ncol(.))})
-# {
-#     f(y = nrow(x), z = ncol(x))
-# }
+# f(y = nrow(x), z = ncol(x))
 
 unpipe(iris %>% 
   {
@@ -97,12 +110,14 @@ unpipe(iris %>%
     rbind(H, T)
   } %>%
   summary)
-# summary((function(.) {
-#     n <- sample(1:10, size = 1)
-#     H <- head(., n)
-#     T <- tail(., n)
-#     rbind(H, T)
-# })(iris))
+# summary({
+#   tmp0 <- iris
+#   n <- sample(1:10, size = 1)
+#   H <- head(tmp0, n)
+#   T <- tail(tmp0, n)
+#   rbind(H, T)
+# })
+
 
 unpipe(f <- . %>% cos %>% sin )
 # f <- function(.) sin(cos(.))
@@ -120,8 +135,9 @@ unpipe(
     print
 )
 # car_data <- print(transform(aggregate(. ~ cyl, data = subset(mtcars, 
-#    hp > 100), FUN = function(.) round(mean(.), 2)), kpl = multiply_by(mpg, 
-#    0.4251)))
+#     hp > 100), FUN = function(.) round(mean(.), 2)), kpl = multiply_by(mpg, 
+#     0.4251)))
+
 
 unpipe(
   car_data %>%
@@ -131,6 +147,7 @@ unpipe(
     else x
   })
 )
+
 # (function(x) {
 #     if (nrow(x) > 2) 
 #         rbind(head(x, 1), tail(x, 1))
@@ -145,13 +162,9 @@ unpipe(
     else .
   }
 )
-# {
-#     if (nrow(car_data) > 0) 
-#         rbind(head(car_data, 1), tail(car_data, 1))
-#     else car_data
-# }
+# if (nrow(car_data) > 0) rbind(head(car_data, 1), tail(car_data, 
+#     1)) else car_data
 
-# if there is more than two dot placeholders, rhs needs to be passed by lambda.
 unpipe(
   rnorm(1000)    %>%
   multiply_by(5) %>%
@@ -162,11 +175,11 @@ unpipe(
      head(.)
   }
 )
-# (function(.) {
-#     cat("Mean:", mean(.), "Variance:", var(.), "\n")
-#     head(.)
-# })(add(multiply_by(rnorm(1000), 5), 5))
-
+# {
+#     tmp0 <- add(multiply_by(rnorm(1000), 5), 5)
+#     cat("Mean:", mean(tmp0), "Variance:", var(tmp0), "\n")
+#     head(tmp0)
+# }
 
 unpipe(
   rnorm(100) %>% `*`(5) %>% `+`(5) %>% 
@@ -175,7 +188,8 @@ unpipe(
     head(.)
   }
 )
-# (function(.) {
-#     cat("Mean:", mean(.), "Variance:", var(.), "\n")
-#     head(.)
-# })(rnorm(100) * 5 + 5)
+# {
+#     tmp0 <- rnorm(100) * 5 + 5
+#     cat("Mean:", mean(tmp0), "Variance:", var(tmp0), "\n")
+#     head(tmp0)
+# }
