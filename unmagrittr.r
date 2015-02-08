@@ -25,7 +25,7 @@ unpipe <- function(expr_, eval_ = FALSE) {
       as.call(c(
         quote(`{`), 
         as.call(list(quote(`<-`), new_sym, expr_prev)), 
-        as.list(replace_dot(expr_next, new_sym)) ))
+        lapply(expr_next, replace_dot, new_sym) ))
     }
     
     make_var_name <- function(name) {
@@ -59,8 +59,7 @@ unpipe <- function(expr_, eval_ = FALSE) {
       
       if (length(direct_dot_pos) > 0) wrap(lst[-1], as.call(replace_direct_dot(expr, acc)))
       else if (is.symbol(expr) || class(expr) == "(") wrap(lst[-1], as.call(c(expr, acc)))
-      else if (expr[[1]] == "{" && length(expr) == 2) wrap(lst[-1], replace_dot(expr[[2]], acc))
-      else if (expr[[1]] == "{" && length(expr) >= 3) wrap(lst[-1], assign_temp_var(expr[-1], acc))
+      else if (expr[[1]] == "{") wrap(lst[-1], assign_temp_var(expr[-1], acc))
       else wrap(lst[-1], as.call(c(expr[[1]], acc, lapply(expr[-1], replace_dot, acc))))
     }
 
@@ -105,7 +104,20 @@ unpipe(x %>% f(y, z = .))
 unpipe(x %>% f(y = nrow(.), z = ncol(.)))
 # f(x, y = nrow(x), z = ncol(x))
 unpipe(x %>% {f(y = nrow(.), z = ncol(.))})
-# f(y = nrow(x), z = ncol(x))
+# {
+#     tmp0 <- x
+#     f(y = nrow(.), z = ncol(.))
+# }
+
+### when being wrapped by `{`, lhs is firstly bound to a new variable and passed to rhs's `.`
+### unpipe(rnorm(10) %>% {f(y = mean(.), z = sd(.))}) 
+### should 'not' be
+### f(y = mean(rnorm(10)), z = sd(rnorm(10)))
+### ; should be
+### {
+###    tmp0 <- rnorm(10)
+###    f(y = mean(tmp0), z = sd(tmp0))
+### }
 
 unpipe(iris %>% 
   {
