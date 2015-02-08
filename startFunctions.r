@@ -210,40 +210,49 @@ rm.all <- function(env = .GlobalEnv) {
 ### assignment
 ## see examples in https://gist.github.com/TobCap/6713338
 ## class is bound when assigning
-assign2 <- function(x.char, init.val, check.funs = class, envir = parent.frame()) {
+assign2 <- function(x_char, value, check_funs = c(class, length), envir = parent.frame()) {
   ## The idea of this function comes from makeActiveBinding's example.
   ## Enter ?makeActiveBinding in R console.
-
-  checker <- c(check.funs)
-  if(!all(vapply(checker, is.function, FALSE)))
-    stop("check.funs must be function")
-
-  x.sym <- as.symbol(x.char)
   
-  x <- init.val
-  checked.x <- lapply(checker, function(f) f(x))
-  checked.x1 <- checked.x[[1]] # for speed-up when length(checked.funs) == 1
+  if (!is.character(x_char))
+    stop("lhs must be symbol or character")
+  
+  checker <- c(check_funs)
+  if(!all(vapply(checker, is.function, FALSE)))
+    stop("check_funs must be function")
+
+  x_sym <- as.symbol(x_char)
+  
+  checked_value <- lapply(checker, function(f) f(value))
+  checked_1 <- checked_value[[1]] # for speed-up when length(checked.funs) == 1
 
   msg <- paste0(
     "Right-side's ",
-    if(length(checker) == 1) substitute(check.funs)
-    else paste0(as.character(as.list(substitute(check.funs))[-1]), collapse = " or "),
-    " is different from existing value.", collapse = "")
+    if (length(checker) == 1) shQuote(substitute(check_funs))
+    else paste0(shQuote(as.character(as.list(substitute(check_funs))[-1])), collapse = " or "),
+    " is different from existing value.\n", collapse = "")
 
   out.fun <- function(v) {
-    if (!missing(v)){
-      for(i in seq_along(checker))
-        if(checker[[i]](v) != checked.x[[i]])
+    if (!missing(v)) {      
+      for (i in seq_along(checker))
+        if (!isTRUE(checker[[i]](v) == checked_value[[i]]))
           stop(msg)
-      x <<- v
+      value <<- v
     }
-    x
+    value
   }
-  if(length(checker) == 1) # for speed-up
-    body(out.fun)[[2]][[3]][[2]] <- quote(if (check.funs(v) != checked.x1) stop(msg))
 
-  cat(x.sym, "is created!", "\n")
-  invisible(makeActiveBinding(x.sym, out.fun, envir))
+  if (length(checker) == 1) # for speed-up
+    body(out.fun)[[2]][[3]][[2]] <- quote(if (check_funs(v) != checked_1) stop(msg))
+  
+  cat(x_sym, "is trying to assign...", "\n")
+  makeActiveBinding(x_sym, out.fun, envir)
+  
+}
+
+## sugar
+`%<-@%` <- function(lhs, rhs){
+  assign2(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
 ## assign immutable variable
@@ -251,10 +260,6 @@ assign3 <- function(var.char, val, envir = parent.frame()){
   if(!is.character(var.char)) stop("1st argument must be character")
   assign(var.char, val, envir = envir)
   invisible(lockBinding(var.char, envir))
-}
-
-`%<-@%` <- function(lhs, rhs){
-  assign2(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
 ## := is parsable due to a historical reason and can be assigned.
