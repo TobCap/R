@@ -109,7 +109,7 @@ unpipe(x %>% {f(y = nrow(.), z = ncol(.))})
 #     f(y = nrow(.), z = ncol(.))
 # }
 
-### when being wrapped by `{`, lhs is firstly bound to a new variable and passed to rhs's `.`
+### when rhs is wrapped by `{`, lhs is firstly bound to a new variable and passed to `.` in rhs.
 ### unpipe(rnorm(10) %>% {f(y = mean(.), z = sd(.))}) 
 ### should 'not' be
 ### f(y = mean(rnorm(10)), z = sd(rnorm(10)))
@@ -179,8 +179,12 @@ unpipe(
     else .
   }
 )
-# if (nrow(car_data) > 0) rbind(head(car_data, 1), tail(car_data, 
-#     1)) else car_data
+# {
+#     tmp0 <- car_data
+#     if (nrow(tmp0) > 0) 
+#         rbind(head(tmp0, 1), tail(tmp0, 1))
+#     else tmp0
+# }
 
 unpipe(
   rnorm(1000)    %>%
