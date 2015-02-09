@@ -106,7 +106,7 @@ unpipe(x %>% f(y = nrow(.), z = ncol(.)))
 unpipe(x %>% {f(y = nrow(.), z = ncol(.))})
 # {
 #     tmp0 <- x
-#     f(y = nrow(.), z = ncol(.))
+#     f(y = nrow(tmp0), z = ncol(tmp0))
 # }
 
 ### when rhs is wrapped by `{`, lhs is firstly bound to a new variable and passed to `.` in rhs.
@@ -134,7 +134,6 @@ unpipe(iris %>%
 #   T <- tail(tmp0, n)
 #   rbind(H, T)
 # })
-
 
 unpipe(f <- . %>% cos %>% sin)
 # f <- function(.) sin(cos(.))
@@ -164,7 +163,6 @@ unpipe(
     else x
   })
 )
-
 # (function(x) {
 #     if (nrow(x) > 2) 
 #         rbind(head(x, 1), tail(x, 1))
