@@ -146,7 +146,7 @@ f. <- function(..., env_ = parent.frame()) {
 ## addOne           (..+1)              `+`(1) or add(1)
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
-# "%|%" <- function(lhs, rhs){
+# "%|%" <- function(lhs, rhs) {
 #   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
 #   if (is.function(ans))
 #     ans(lhs)  
@@ -299,9 +299,9 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 
 
 # This recursively composes language-tree and is faster than curry(), but only closure is acceptable
-curry_closure <- function(f){
+curry_closure <- function(f) {
   stopifnot(is.function(f), typeof(f) == "closure")
-  make_body <- function(args_){
+  make_body <- function(args_) {
     if (length(args_) == 0) body(f)
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
@@ -322,21 +322,21 @@ curry_closure <- function(f){
 # h4 <- curry_closure(D)(quote(x^5)); h4("x")
 
 # particial application
-# an undercore symbol `_` is requited to bind variales
+# an undercore symbol `_` is requited to bind variables
 pa <- function(expr, env_ = parent.frame()){
-  all.vars <- all.names(substitute(expr), functions = FALSE)
-  underscores <- all.vars[grep("^\\_$|^\\_[0-9]+$", all.vars)]
+  all_vars <- all.names(substitute(expr), functions = FALSE)
+  underscores <- all_vars[grep("^\\_$|^\\_[0-9]+$", all_vars)]
   if (length(underscores) == 0)
     stop("A binding variable must start with underscore and ends with numeric.")
   if (anyDuplicated.default(underscores) > 0)
     stop("Binding variables must be different from each other.")
-  created.formals <- as.formals(underscores[order(underscores)])
+  created_formals <- as.formals(underscores[order(underscores)])
 
-  make.body <- function(args_){
+  make_body <- function(args_) {
     if (length(args_) == 0) substitute(expr, parent.env(environment()))
-    else call("function", as.pairlist(args_[1]), make.body(args_[-1]))
+    else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
-  eval(make.body(created.formals), env_)
+  eval(make_body(created_formals), env_)
 }
 # f1 <- pa(`_` * 2); f1(10)
 # f2 <- pa(D(`_`, "x")); f2(quote(x^4))
@@ -355,9 +355,9 @@ cr <- function(f) {
 }
 
 # see https://gist.github.com/TobCap/6255395
-uncurry <- function(fun){ 
+uncurry <- function(fun) { 
   function(...){
-    rec <- function(f, dots){
+    rec <- function(f, dots) {
       if (length(dots) == 0) f
       else rec(f(dots[[1]]), dots[-1])
     }
@@ -414,14 +414,14 @@ flip_cr <- function(fun) {
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
-# (function(x){
+# (function(x) {
 #   s <- flip(substitute)
 #   print(substitute(x, environment()))
 #   print(s(environment(),x))
 # })(1:5)
 
 # > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
-# > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below.
+# > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below at line #750.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
 
 # > flip_cr(cr(D))("x")(quote(x^10))
@@ -456,7 +456,7 @@ fix_ <- function(g) f <- g(f)
 
 # fix0 <- function(g) f <- g(f)
 # fix1 <- function(g) g(fix1(g))
-# fix2 <- function(f) (function(x) f(x(x)) )(function(x) f(x(x)))
+# fix2 <- function(f) (function(x) f(x(x)))(function(x) f(x(x)))
 # fix3 <- function(f) (function(x) f(function(y) x(x)(y)))(function(x) f(function(y) x(x)(y)))
 # fix4 <- function(f) (function(x) function(y) f(x(x))(y))(function(x) function(y) f(x(x))(y))
 
@@ -580,6 +580,9 @@ fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## U <- function(f) f(f)
 ## fib.u <- function(f) function(n) if(n <= 1) n else f(f)(n - 1)  + f(f)(n - 2)
 ## U(fib.u)(10)
+##
+## fix6 <- function(f) U(function(x) f(x(x)))
+## fix6(fib_maker)(10) # => 55
 
 ### language object operater
 ## promise_tracker can track promise's original symbol
@@ -588,11 +591,11 @@ promise_tracker <- function(`__sym__`, n = 1, strict = TRUE) {
   if (strict) stopifnot(n <= sys.parent())
   stack_adjust <- 2
   
-  make_call1 <- function(x){
+  make_call1 <- function(x) {
     if (x == 0) call("substitute", quote(`__sym__`))
     else call("substitute", make_call1(x - 1))
   }
-  make_call2 <- function(x){
+  make_call2 <- function(x) {
     if (x == 0) make_call1(n)
     else call("eval", make_call2(x - 1), substitute(parent.frame(k), list(k = x + stack_adjust)))
   }
@@ -608,12 +611,12 @@ promise_tracker <- function(`__sym__`, n = 1, strict = TRUE) {
 # rm(n, f1, f2, f3, f4)
 
 ### convert call to list and vice versa
-call_list_cnv <- function(f.arg){
-  arg.is.lang <- is.call(f.arg)
-  cnv <- function(x){
+call_list_cnv <- function(f.arg) {
+  arg_is_lang <- is.call(f.arg)
+  cnv <- function(x) {
     if (length(x) == 1) x
     else if (is.pairlist(x)) as.pairlist(lapply(x, cnv))
-    else if (arg.is.lang) lapply(x, cnv)
+    else if (arg_is_lang) lapply(x, cnv)
     else as.call(lapply(x, cnv))
   }
   cnv(f.arg)
@@ -636,7 +639,7 @@ replace_call <- function(expr, before, after) {
   stopifnot(is.language(expr))
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
-      if (is.symbol(before)){ # for formal parameter
+      if (is.symbol(before)){ # for formal parameters
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
@@ -649,15 +652,15 @@ replace_call <- function(expr, before, after) {
   conv(expr)
 }
 
-replace_multi <- function(expr, befores, after, replace.fun = replace_symbol){
-  make_call <- function(x){
+replace_multi <- function(expr, befores, after, replace_fun = replace_symbol) {
+  make_call <- function(x) {
     if (length(x) == 0) expr
-    else replace.fun(make_call(x[-1]), x[[1]], after)
+    else replace_fun(make_call(x[-1]), x[[1]], after)
   }
   make_call(c(befores)) # need c() if length(befores) == 1
 }
 
-replace_lang <- function (expr, before, after, can_accept_undefined_var = FALSE){
+replace_lang <- function (expr, before, after, can_accept_undefined_var = FALSE) {
   stopifnot(is.language(expr))
   if (can_accept_undefined_var) {
     stopifnot(exists("accept_undefined_var"))
@@ -701,7 +704,7 @@ accept_undefined_var <- function(.x, env) {
   w <- function(x) warning(
     paste0("the '", x,"' is an existing language object,so not interpreted as undefined variable"))
  
-  force_lang <- function(y){
+  force_lang <- function(y) {
     first_char <- as.character(y)[[1]]
     if (is.character(y)) parse(text = y)[[1]] # character
     else if (first_char %in% lang_fun_names[1:2]) y[[2]] # quote or expression
@@ -730,7 +733,7 @@ accept_undefined_var <- function(.x, env) {
 # [1] -9
 
 # arguments need to be quoted
-nest_formula <- function(expr, variable, num){
+nest_formula <- function(expr, variable, num) {
   if (num == 1) expr
   else replace_call(nest_formula(expr, variable, num - 1), variable, expr)
 }
@@ -742,13 +745,13 @@ nest_formula <- function(expr, variable, num){
 # [1] TRUE
 
 ### tail recursive
-nest_fun <- function(f, n, acc_fun = identity){
+nest_fun <- function(f, n, acc_fun = identity) {
   # compose_ is already defined above.
   if (n == 0) acc_fun
   else if (n %% 2 == 0) nest_fun(compose_(f, f), n / 2, acc_fun)
   else nest_fun(f, n - 1, compose_(f, acc_fun))
 }
-nest_fun2 <- function(f, n){
+nest_fun2 <- function(f, n) {
   if (n == 0) identity
   else compose_(f, nest_fun2(f, n - 1))
 }
@@ -795,15 +798,15 @@ nest_fun2 <- function(f, n){
 # succ <- l.(n, f, x, f(n(f)(x)))        # f.(n, f.(f, f.(x, f(n(f)(x)))))
 # mult <- l.(m, n, f, m(n(f)))           # f.(m, f.(n, f.(f, m(n(f)))))
 # exp  <- l.(m, n, n(m))                 # f.(m, f.(n, n(m)))
-# toInt <- l.(n, n(l.(n, n + 1))(0))     # f.(n, n(f.(n, n + 1))(0))
+# to_int <- l.(n, n(l.(n, n + 1))(0))     # f.(n, n(f.(n, n + 1))(0))
 # 
-# toInt(plus(zero)(one))
-# toInt(plus(one)(two))
-# toInt(succ(one))
-# toInt(num(99))
-# toInt(plus(num(7))(num(8)))
-# toInt(mult(num(3))(num(5)))
-# num(3) %|>% mult %<|% num(5) %|% toInt
+# to_int(plus(zero)(one))
+# to_int(plus(one)(two))
+# to_int(succ(one))
+# to_int(num(99))
+# to_int(plus(num(7))(num(8)))
+# to_int(mult(num(3))(num(5)))
+# num(3) %|>% mult %<|% num(5) %|% to_int
 
 # true <- f.(a, f.(b, a))
 # false <- f.(a, f.(b, b))
@@ -823,11 +826,11 @@ nest_fun2 <- function(f, n){
 # identical(or(false)(true), true)
 # identical(or(false)(false), false)
 #
-# identical(not2(false), true, ignore.environment=TRUE)
-# identical(not2(true), false, ignore.environment=TRUE)
+# identical(not2(false), true, ignore_environment = TRUE)
+# identical(not2(true), false, ignore_environment = TRUE)
 #
-# toInt(if_(true)(one)(two))
-# toInt(if_(false)(one)(two))
+# to_int(if_(true)(one)(two))
+# to_int(if_(false)(one)(two))
 
 lang2char <- function(expr, type = c("rexp", "sexp")){
   type <- match.arg(type)
