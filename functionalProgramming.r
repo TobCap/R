@@ -61,8 +61,15 @@ f. <- function(..., env_ = parent.frame()) {
   function(lhs, rhs, env_ = parent.frame()) {
     rhs_expr <- substitute(rhs)
     if (length(rhs_expr) == 1 && is.symbol(rhs_expr)) {
-      rhs(lhs) } # shortcut purpose for speedup
+      # shortcut purpose for speedup
+      rhs(lhs) } 
+    else if (rhs_expr[[1]] == "{") {
+      # eager eval
+      ans <- eval(rhs_expr, envir = list(.. = lhs), enclos = env_)
+      if (is.function(ans)) ans(lhs)
+      else ans }
     else if (any(all.names(rhs_expr) == "..")) {
+      # lazy eval .. with lambda
       rhs_closure <- eval(call("function", two_dots_arg, rhs_expr), env_)
       rhs_closure(lhs) }
     else {
@@ -80,16 +87,11 @@ f. <- function(..., env_ = parent.frame()) {
 # > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
 # [1]  0  1  4  9 16
 
-### same result
+### base function v.s. `%|%`
 # > Filter(function(x) x%%2==0, 1:5)
 # [1] 2 4
 # > 1:5 %|% ..[..%%2==0]
 # [1] 2 4
-
-# With %|% operator, I think, right assignment is an intuitive way to define a variable
-# > 1:10 %|% ..[..%%2==0] %|% ..^2 -> x
-# > x
-# [1]   4  16  36  64 100
 
 ### set break lines after typing `%|%`
 # (function() {
@@ -102,6 +104,24 @@ f. <- function(..., env_ = parent.frame()) {
 # }) %|% 
 #   replicate(n=1000, ..()) %|% 
 #   matplot(.., type = "l", ann = FALSE)
+
+### switch eager or lazy 
+# my_sum <- function(...) {print("my_sum is called"); sum(...)}
+# my_log <- function(...) {print("my_log is called"); log(...)}
+#
+# {print("1:5 is called"); 1:5} %|% my_sum
+# {print("1:5 is called"); 1:5} %|% {my_sum}
+#
+# {print("1:5 is called"); 1:5} %|% my_sum(..)
+# {print("1:5 is called"); 1:5} %|% {my_sum(..)}
+#
+# {print("1:5 is called"); c(NA, 1:5)} %|% my_sum(.., na.rm = TRUE)
+# {print("1:5 is called"); c(NA, 1:5)} %|% {my_sum(.., na.rm = TRUE)}
+#
+# {print("1:5 is called"); 1:5} %|% my_sum %|% my_log
+# {print("1:5 is called"); 1:5} %|% {my_sum} %|% my_log
+# {print("1:5 is called"); 1:5} %|% my_sum %|% {my_log}
+# {print("1:5 is called"); 1:5} %|% {my_sum} %|% {my_log}
 
 # library(magrittr)
 # library(microbenchmark)
@@ -138,20 +158,17 @@ f. <- function(..., env_ = parent.frame()) {
 ## %>% 25.89355 27.31938 31.88473 28.17238 34.17859 90.42461   100
 ## %|% 24.65473 25.79749 30.46729 28.68302 32.91770 69.69452   100
 
-##                  %|%                 %>%
-## receiving symbol ..                  .
-## speed            no comment
-## syntax           R like              can omit first argument
-## evaluation       lazy                eager
-## addOne           (..+1)              `+`(1) or add(1)
+##                    %|%                 %>%
+## placeholder symbol ..                  .
+## syntax             cannot omit arg     UFCS-like
+## evaluation         lazy or {eager}     eager
+## addOne             (..+1)              `+`(1) or add(1) or {.+1}
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
-# "%|%" <- function(lhs, rhs) {
+# "%|%" <- function(lhs, rhs){
 #   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
-#   if (is.function(ans))
-#     ans(lhs)  
-#   else
-#     ans
+#   if (is.function(ans)) ans(lhs)  
+#   else ans
 # }
 
 ### other pipe operators like F#
