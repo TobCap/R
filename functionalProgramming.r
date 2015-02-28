@@ -378,15 +378,21 @@ flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
   
   if (typeof(fun) == "closure") {
     eval(call("function", as.pairlist(args_new), body(fun)), environment(fun))
-  } else { ## special & builtin  
-    fun_sym <- substitute(fun)
-    body_ <- quote({
-      called <- sys.call()
-      called[-1] <- called[-1][c(r, l)]
-      called[[1]] <- fun_sym
-      eval(called, parent.frame(), environment(fun))
-    })
-    eval(call("function", as.pairlist(args_new), body_), environment())
+  } else { ## special & builtin
+    ## the previous code can work for "flip(substitute)(list(x=10), x+y)"
+    # fun_sym <- substitute(fun)
+    # body_ <- quote({
+      # called <- sys.call()
+      # called[-1] <- called[-1][c(r, l)]
+      # called[[1]] <- fun_sym
+      # eval(called, f_env)
+    # })
+    # f_env <- if (is.null(environment(fun))) .BaseNamespaceEnv else environment(fun)
+    # eval(call("function", as.pairlist(args_new), body_), environment(), f_env)
+    
+    body_ <- as.call(c(substitute(fun), lapply(names(args_orig), as.symbol)))
+    f_env <- if (is.null(environment(fun))) .BaseNamespaceEnv else environment(fun)
+    eval(call("function", as.pairlist(args_new), body_), f_env)
   }
 }
 
