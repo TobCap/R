@@ -291,20 +291,16 @@ curry_dots <- function (fun, env_ = parent.frame()) {
   has_quoted <- FALSE
   dots_pos_rev <- which(rev(names(fun_args)) == "...")
   if (length(dots_pos_rev) == 0) stop("`fun` do not have a dot-dot-dot argument")
-  
-  iter <- function(len, arg) {
-    if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
+
+  iter <- function(pos, arg) {
+    if (pos == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
     else
       function(...) {
-        x <- list(...)
-        if (len == dots_pos_rev) {
-          if (length(x) == 0) iter(len - 1, arg)
-          else {
-            if (is.language(x[[1]])) has_quoted <<- TRUE
-            iter(len, append(arg, as.list(x)))}}
-        else {
-          if (is.language(x[[1]])) has_quoted <<- TRUE
-          iter(len - 1, append(arg, as.list(x)))}}}
+        if (pos == dots_pos_rev && nargs() == 0) return(iter(pos - 1, arg))
+        x <- if (nargs() == 0) rev(fun_args)[pos] else list(...)
+        if (is.language(x)) has_quoted <<- TRUE
+        iter(if (pos == dots_pos_rev) pos else pos - 1, append(arg, x)) }}
+
   iter(length(fun_args), list())
 }
 
@@ -315,19 +311,12 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 # > curry_dots(sum)(1)(2)(NA)(3)()(na.rm = TRUE)
 # [1] 6
 
-# > curry(lapply)(1:5)(function(x) x ^ 2)()
-# Error in ((curry(lapply)(1:5))(function(x) x^2))() : 
-#   argument "x" is missing, with no default
-
-# > curry_dots(lapply)(1:5)(function(x) x ^ 2)()
-# [[1]]
-# [1] 1
-# 
-
 # > call("rnorm", 5, 100)
 # rnorm(5, 100)
+
 # > curry(call)("rnorm")(5)(100)()
 # Error: attempt to apply non-function
+
 # > curry_dots(call)("rnorm")(5)(100)()
 # rnorm(5, 100)
 
