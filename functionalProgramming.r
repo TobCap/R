@@ -434,7 +434,7 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
-`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_), env_ = env_)
+`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
