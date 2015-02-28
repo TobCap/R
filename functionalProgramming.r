@@ -245,16 +245,33 @@ tap <- function(x, fun = print, ...) {
 ## > substitute(x, list(x = 1))
 ## [1] 1
 ## > curry(substitute)(x)(list(x=1))
-## Error in curry(substitute)(x) : object 'x' not found
-curry <- function (fun, env_ = parent.frame()) {
-  has_quoted <- FALSE
-  iter <- function(len, arg) {
-    if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
-    else function(x) {
-      if (is.language(x)) has_quoted <<- TRUE
-      iter(len - 1, append(arg, list(x)))}}
-  iter(length(formals(args(fun))), list())
+## expr
+
+curry <- function(f) {
+  stopifnot(is.function(f))
+
+  make_body <- function(args_) {
+    if (length(args_) == 0)
+      if (typeof(f) == "closure") body(f)
+    else as.call(c(f, lapply(names(f_args), as.symbol)))
+    else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
+  }
+
+  f_args <- formals(args(f))
+  if (is.null(f_args)) f
+  else eval(make_body(f_args), envir = environment(f), baseenv())
 }
+
+### previous eager version
+# curry <- function (fun, env_ = parent.frame()) {
+#   has_quoted <- FALSE
+#   iter <- function(len, arg) {
+#     if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
+#     else function(x) {
+#       if (is.language(x)) has_quoted <<- TRUE
+#       iter(len - 1, append(arg, list(x)))}}
+#   iter(length(formals(args(fun))), list())
+# }
 
 # > curry(function(x, y, z) x + y + z)(1)(2)(3)
 # [1] 6
@@ -314,29 +331,10 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 # > curry_dots(call)("rnorm")(5)(100)()
 # rnorm(5, 100)
 
-
-# This recursively composes language-tree and is faster than curry(), but only closure is acceptable
-curry_closure <- function(f) {
-  stopifnot(is.function(f), typeof(f) == "closure")
-  make_body <- function(args_) {
-    if (length(args_) == 0) body(f)
-    else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
-  }
-  eval(make_body(formals(args(f))), environment(f))
-}
-
-# > c1 <- curry(rnorm); c2 <- curry_closure(rnorm)
-# > library(microbenchmark)
-# > microbenchmark(c1(10)(100)(1), c2(10)(100)(1))
-# Unit: microseconds
-#              expr    min      lq median     uq     max neval
-#  (c1(10)(100))(1) 42.796 44.3555 45.025 46.362 145.771   100
-#  (c2(10)(100))(1) 10.700 11.5910 12.037 12.928  19.169   100
-
 # h1 <- curry(rnorm); h1(10)(100)(1)
-# h2 <- curry_closure(rnorm)(10)(100); h2(1)
-# h3 <- curry_closure(D); h3(quote(x^5))("x")
-# h4 <- curry_closure(D)(quote(x^5)); h4("x")
+# h2 <- curryrnorm)(10)(100); h2(1)
+# h3 <- curry(D); h3(quote(x^5))("x")
+# h4 <- curry(D)(quote(x^5)); h4("x")
 
 # particial application
 # an undercore symbol `_` is requited to bind variables
@@ -362,14 +360,6 @@ pa <- function(expr, env_ = parent.frame()){
 # g <- function(x, y, z, w) 1000*x + 100*y + 10*z + 1*w
 # f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
 # f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
-
-cr <- function(f) {
-  call_fun <- 
-    if (any(names(formals(args(f))) == "...")) curry_dots
-    else if (typeof(f) == "closure") curry_closure
-    else curry
-  call_fun(f)
-}
 
 # see https://gist.github.com/TobCap/6255395
 uncurry <- function(fun) { 
@@ -437,11 +427,11 @@ flip_cr <- function(fun) {
 #   print(s(environment(),x))
 # })(1:5)
 
-# > Dx <- cr(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
+# > Dx <- curry(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
 # > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below at line #750.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
 
-# > flip_cr(cr(D))("x")(quote(x^10))
+# > flip_cr(curry(D))("x")(quote(x^10))
 # 10 * x^9
 
 ### curried function creator
