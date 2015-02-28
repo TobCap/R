@@ -253,7 +253,7 @@ curry <- function(f) {
   make_body <- function(args_) {
     if (length(args_) == 0)
       if (typeof(f) == "closure") body(f)
-    else as.call(c(f, lapply(names(f_args), as.symbol)))
+      else as.call(c(f, lapply(names(f_args), as.symbol)))
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
 
