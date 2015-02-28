@@ -314,14 +314,15 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 # > call("rnorm", 5, 100)
 # rnorm(5, 100)
 
-# > curry(call)("rnorm")(5)(100)()
-# Error: attempt to apply non-function
+# > curry(call)("rnorm")(5, 100)
+# Error in (curry(call)("rnorm"))(5, 100) : 
+#   '...' used in an incorrect context
 
 # > curry_dots(call)("rnorm")(5)(100)()
 # rnorm(5, 100)
 
 # h1 <- curry(rnorm); h1(10)(100)(1)
-# h2 <- curryrnorm)(10)(100); h2(1)
+# h2 <- curry(rnorm)(10)(100); h2(1)
 # h3 <- curry(D); h3(quote(x^5))("x")
 # h4 <- curry(D)(quote(x^5)); h4("x")
 
@@ -410,17 +411,20 @@ flip_cr <- function(fun) {
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
+## current code returns incorrect result
 # (function(x) {
 #   s <- flip(substitute)
 #   print(substitute(x, environment()))
 #   print(s(environment(),x))
 # })(1:5)
 
-# > Dx <- curry(flip(D))("x") # or Dx <- pa(D(`_`, "x"))
-# > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below at line #750.
+# > nest_fun(Dx, 5)(quote(x^10)) # nest_fun is defined below near the line #750.
 # 10 * (9 * (8 * (7 * (6 * x^5))))
 
-# > flip_cr(curry(D))("x")(quote(x^10))
+# > Dx1 <- curry(flip(D))("x")
+# > Dx2 <- flip_cr(curry(D))("x")
+# > Dx1(quote(x^10)); Dx2(quote(x^10))
+# 10 * x^9
 # 10 * x^9
 
 ### curried function creator
