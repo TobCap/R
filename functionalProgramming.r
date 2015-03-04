@@ -165,7 +165,7 @@ f. <- function(..., env_ = parent.frame()) {
 ## addOne             (..+1)              `+`(1) or add(1) or {.+1}
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
-# "%|%" <- function(lhs, rhs){
+# "%|%" <- function(lhs, rhs) {
 #   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())
 #   if (is.function(ans)) ans(lhs)
 #   else ans
@@ -194,21 +194,21 @@ compose_ <- function(f, g) function(x) f(g(x)) # rename
 
 
 ## date passing
-`<--` <- function(...){
+`<--` <- function(...) {
   Reduce("%<|%", list(...), right = TRUE)
 }
-`-->` <- function(...){
+`-->` <- function(...) {
   Reduce("%|>%", list(...), right = FALSE)
 }
 # > `-->`(1:5, f.(x, x-1), f.(x, x*10))
 # [1]  0 10 20 30 40
 
 ## composing one more functions
-`<<--` <- function(...){
+`<<--` <- function(...) {
     Funcall <- function(f, ...) f(...)
     function(x) Reduce(Funcall, list(...), x, right = TRUE)
 }
-`-->>` <- function(...){
+`-->>` <- function(...) {
     Funcall <- function(f, ...) f(...)
     function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
 }
@@ -239,6 +239,7 @@ tap <- function(x, fun = print, ...) {
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
+
 ### making an arbitrary function curried
 curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
   # if there are any language object handling functions such as substitute() or match.call() inside body(f),
@@ -258,9 +259,9 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
   make_body <- function(args_) {
     if (length(args_) == 0)
       switch(if (isTRUE(as_special)) "special" else typeof(f)
-             , closure = body(f)
-             , special = make_special_body()
-             , builtin = as.call(c(f, stats:::setNames(lapply(names(f_args), as.symbol), names(f_args))))
+      , closure = body(f)
+      , special = make_special_body()
+      , builtin = as.call(c(f, stats:::setNames(lapply(names(f_args), as.symbol), names(f_args))))
       )
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
@@ -285,7 +286,7 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
           f_args_head <- f_args_rev[[1]]
           arg_ <-
             if (f_args_head == "...")  as.list(sub2(call("list", f_args_head), e))[-1]
-          else sub2(f_args_head, e)
+            else sub2(f_args_head, e)
           if (is.null(arg_)) arg_ <- list(NULL) # if default value is NULL
           args_ <- append(arg_, args_)
           f_args_rev <- f_args_rev[-1]
@@ -342,7 +343,7 @@ curry_dots <- function (fun, env_ = parent.frame()) {
           x_formal <- formals(sys.function())
           x <-
             if (is.null(x_val)) x_formal # default value
-          else stats:::setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
+            else stats:::setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
           iter(if (pos == dots_pos_rev) pos else pos - 1, append(acc_arg, x))
         })
       )
@@ -442,9 +443,9 @@ flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
 
   body_ <-
     switch(typeof(fun)
-           , closure = body(fun)
-           , builtin = as.call(c(fun_sym, lapply(names(args_orig), as.symbol)))
-           , special = make_special_body()
+    , closure = body(fun)
+    , builtin = as.call(c(fun_sym, lapply(names(args_orig), as.symbol)))
+    , special = make_special_body()
     )
 
   eval(call("function", as.pairlist(args_new), body_), environment(fun), baseenv())
@@ -490,7 +491,8 @@ flip_cr <- function(fun) {
 # 10 * x^9
 # 10 * x^9
 
-`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
+### curried function creator
+l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
@@ -545,7 +547,7 @@ fix_ <- function(g) f <- g(f)
 memoizer <- function(f) {
   memo_ <- new.env()
   f_orig <- f
-  function(...){
+  function(...) {
     key <- paste(list(...), collapse=",")
     if (is.null(memo_[[key]])) memo_[[key]] <- f_orig(...)
     memo_[[key]]
@@ -554,7 +556,7 @@ memoizer <- function(f) {
 
 tracer <- function(f) {
   num <- 0
-  function(...){
+  function(...) {
     key <- paste(list(...), collapse=",")
     num <<- num + 1
     suffix <- if (num <= 3) switch(num, "st", "nd", "rd") else "th"
@@ -701,7 +703,7 @@ replace_call <- function(expr, before, after) {
   stopifnot(is.language(expr))
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
-      if (is.symbol(before)){ # for formal parameters
+      if (is.symbol(before)) { # for formal parameters
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
@@ -742,10 +744,10 @@ replace_lang <- function (expr, before, after, can_accept_undefined_var = FALSE)
 
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
-      if (is.function(before)){
+      if (is.function(before)) {
         ind <- match(TRUE, vapply(lapply(names(x), as.symbol), before, logical(1)))
         names(x)[ind] <- as.character(after)
-      } else if (is.symbol(before[[1]])){
+      } else if (is.symbol(before[[1]])) {
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
@@ -894,7 +896,7 @@ nest_fun2 <- function(f, n) {
 # to_int(if_(true)(one)(two))
 # to_int(if_(false)(one)(two))
 
-lang2char <- function(expr, type = c("rexp", "sexp")){
+lang2char <- function(expr, type = c("rexp", "sexp")) {
   type <- match.arg(type)
   stopifnot(is.call(expr))
 
