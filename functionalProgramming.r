@@ -1,4 +1,4 @@
-### functional operators and useful functions
+ï»¿### functional operators and useful functions
 
 ## Auxiliary function
 as.formals <- function(x, value = list(quote(expr=))) {
@@ -492,9 +492,9 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
-`ƒÉ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
-### Address of ƒÉ (lambda) in Unicode is U+03BB or \u03BB
-# ƒÉ(g, x, g(g(x)))(ƒÉ(y, y+1))(5)
+`Î»` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
+### Address of Î» (lambda) in Unicode is U+03BB or \u03BB
+# Î»(g, x, g(g(x)))(Î»(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
 # l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
@@ -506,7 +506,7 @@ flip_cr <- function(fun) {
 
 # http://en.wikipedia.org/wiki/Fixed-point_combinator
 # http://upload.wikimedia.org/math/9/c/c/9ccb07cb4f99bef41be7043990ac5eb3.png
-# Y <- ƒÉ(f, (ƒÉ(x, f(x(x))))(ƒÉ(x, f(x(x)))))
+# Y <- Î»(f, (Î»(x, f(x(x))))(Î»(x, f(x(x)))))
 ## compare above express with the definition written in png file!
 # fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # Y(fib_maker)(10) # => 55
@@ -526,8 +526,8 @@ fix_ <- function(g) f <- g(f)
 
 ### g = Y(f), f(g) = g; f = Y(g), g(f) = f
 ### Y g = g(Y g)
-### Y = ƒÉf.(ƒÉx.f (x x)) (ƒÉx.f (x x))
-### Z = ƒÉf.(ƒÉx.f (ƒÉy. x x y)) (ƒÉx.f (ƒÉy. x x y))
+### Y = Î»f.(Î»x.f (x x)) (Î»x.f (x x))
+### Z = Î»f.(Î»x.f (Î»y. x x y)) (Î»x.f (Î»y. x x y))
 
 # > mult_maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
 # > microbenchmark(fix0(mult_maker)(100),fix1(mult_maker)(100),fix2(mult_maker)(100), fix3(mult_maker)(100), fix4(mult_maker)(100))
