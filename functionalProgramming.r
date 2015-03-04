@@ -492,9 +492,9 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
-`位` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
-### Address of 位 (lambda) in Unicode is U+03BB or \u03BB
-# 位(g, x, g(g(x)))(位(y, y+1))(5)
+`兩` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
+### Address of 兩 (lambda) in Unicode is U+03BB or \u03BB
+# 兩(g, x, g(g(x)))(兩(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
 # l.(g, x, g(g(x)))(l.(y, y+1))(5) # no need to nest f.()
@@ -506,7 +506,7 @@ flip_cr <- function(fun) {
 
 # http://en.wikipedia.org/wiki/Fixed-point_combinator
 # http://upload.wikimedia.org/math/9/c/c/9ccb07cb4f99bef41be7043990ac5eb3.png
-# Y <- 位(f, (位(x, f(x(x))))(位(x, f(x(x)))))
+# Y <- 兩(f, (兩(x, f(x(x))))(兩(x, f(x(x)))))
 ## compare above express with the definition written in png file!
 # fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # Y(fib_maker)(10) # => 55
@@ -526,8 +526,8 @@ fix_ <- function(g) f <- g(f)
 
 ### g = Y(f), f(g) = g; f = Y(g), g(f) = f
 ### Y g = g(Y g)
-### Y = 位f.(位x.f (x x)) (位x.f (x x))
-### Z = 位f.(位x.f (位y. x x y)) (位x.f (位y. x x y))
+### Y = 兩f.(兩x.f (x x)) (兩x.f (x x))
+### Z = 兩f.(兩x.f (兩y. x x y)) (兩x.f (兩y. x x y))
 
 # > mult_maker <- function(f) function(x) if (x == 1) 1 else x * f(x-1)
 # > microbenchmark(fix0(mult_maker)(100),fix1(mult_maker)(100),fix2(mult_maker)(100), fix3(mult_maker)(100), fix4(mult_maker)(100))
