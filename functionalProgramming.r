@@ -261,7 +261,7 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
       switch(if (isTRUE(as_special)) "special" else typeof(f)
       , closure = body(f)
       , special = make_special_body()
-      , builtin = as.call(c(f, setNames(lapply(names(f_args), as.symbol), names(f_args))))
+      , builtin = as.call(c(f, stats:::setNames(lapply(names(f_args), as.symbol), names(f_args))))
       )
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
@@ -343,7 +343,7 @@ curry_dots <- function (fun, env_ = parent.frame()) {
           x_formal <- formals(sys.function())
           x <-
             if (is.null(x_val)) x_formal # default value
-            else setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
+            else stats:::setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
           iter(if (pos == dots_pos_rev) pos else pos - 1, append(acc_arg, x))
         })
       )
