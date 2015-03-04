@@ -1,4 +1,4 @@
-### functional operators and useful functions
+﻿### functional operators and useful functions
 
 ## Auxiliary function
 as.formals <- function(x, value = list(quote(expr=))) {
@@ -6,10 +6,10 @@ as.formals <- function(x, value = list(quote(expr=))) {
   if (!all(nzchar(x)))
     stop('Including "" or substitute() is invalid input.')
   if (length(x) == 0)
-    return(NULL)    
+    return(NULL)
   if (is.null(names(x)))
     return(`names<-`(as.pairlist(rep_len(value, length(x))), as.character(x)))
-  
+
   ans <- as.list(x)
   idx <- which(!nzchar(names(ans)))
   names(ans)[idx] <- vapply(ans[idx], as.character, "")
@@ -23,10 +23,10 @@ is.formals <- function(x) {
 ### sugar-syntax for lambda
 ### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
 f. <- function(..., env_ = parent.frame()) {
-  # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...` 
+  # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...`
   d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
   # need to be pairlist to return NULL when nothing is passed to `...`.
-  
+
   n <- length(d)
   eval(call("function", as.formals(d[-n]), d[[n]]), env_)
 }
@@ -55,14 +55,14 @@ f. <- function(..., env_ = parent.frame()) {
 ## Left value can be passed by ".." just like scala's underscore "_".
 ## I use ".."; "." is sometimes used within a model formula expression or other packages as a meaningful symbol.
 ## It is not fast but easy to read and understand because of using fewer parentheses.
-`%|%` <- (function() { 
+`%|%` <- (function() {
   two_dots_arg <- as.pairlist(alist(..=))
-  
+
   function(lhs, rhs, env_ = parent.frame()) {
     rhs_expr <- substitute(rhs)
     if (length(rhs_expr) == 1 && is.symbol(rhs_expr)) {
       # shortcut purpose for speedup
-      rhs(lhs) } 
+      rhs(lhs) }
     else if (rhs_expr[[1]] == "{") {
       # eager eval
       ans <- eval(rhs_expr, envir = list(.. = lhs), enclos = env_)
@@ -98,14 +98,14 @@ f. <- function(..., env_ = parent.frame()) {
 #   mu <- 0
 #   m <- 252
 #   sigma <- 0.2 / sqrt(m)
-#   rnorm(m, mu - sigma ^ 2 / 2, sigma) %|% 
-#     cumsum %|% 
+#   rnorm(m, mu - sigma ^ 2 / 2, sigma) %|%
+#     cumsum %|%
 #     c(0, ..)
-# }) %|% 
-#   replicate(n=1000, ..()) %|% 
+# }) %|%
+#   replicate(n=1000, ..()) %|%
 #   matplot(.., type = "l", ann = FALSE)
 
-### switch eager or lazy 
+### switch eager or lazy
 # my_sum <- function(...) {print("my_sum is called"); sum(...)}
 # my_log <- function(...) {print("my_log is called"); log(...)}
 #
@@ -141,15 +141,15 @@ f. <- function(..., env_ = parent.frame()) {
 ## %>% 382.033 396.299 468.14073 420.5940 462.9430 1113.558   100
 
 # microbenchmark(
-# "%>%" =   
-#   airquality %>% 
-#     transform(Date = paste(1973, Month, Day, sep = "-") %>% as.Date) %>% 
+# "%>%" =
+#   airquality %>%
+#     transform(Date = paste(1973, Month, Day, sep = "-") %>% as.Date) %>%
 #     aggregate(. ~ Date %>% format("%W"), ., mean) %>%
 #     subset(Wind > 12, c(Ozone, Solar.R, Wind))
 # ,
-# "%|%" =  
-#   airquality %|% 
-#     transform(.., Date = paste(1973, Month, Day, sep = "-") %|% as.Date) %|% 
+# "%|%" =
+#   airquality %|%
+#     transform(.., Date = paste(1973, Month, Day, sep = "-") %|% as.Date) %|%
 #     aggregate(. ~ Date %|% format(.., "%W"), .., mean) %|%
 #     subset(.., Wind > 12, c(Ozone, Solar.R, Wind))
 # )
@@ -165,9 +165,9 @@ f. <- function(..., env_ = parent.frame()) {
 ## addOne             (..+1)              `+`(1) or add(1) or {.+1}
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
-# "%|%" <- function(lhs, rhs){
-#   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())  
-#   if (is.function(ans)) ans(lhs)  
+# "%|%" <- function(lhs, rhs) {
+#   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())
+#   if (is.function(ans)) ans(lhs)
 #   else ans
 # }
 
@@ -194,25 +194,25 @@ compose_ <- function(f, g) function(x) f(g(x)) # rename
 
 
 ## date passing
-`<--` <- function(...){
+`<--` <- function(...) {
   Reduce("%<|%", list(...), right = TRUE)
 }
-`-->` <- function(...){
+`-->` <- function(...) {
   Reduce("%|>%", list(...), right = FALSE)
 }
 # > `-->`(1:5, f.(x, x-1), f.(x, x*10))
 # [1]  0 10 20 30 40
- 
+
 ## composing one more functions
-`<<--` <- function(...){
+`<<--` <- function(...) {
     Funcall <- function(f, ...) f(...)
     function(x) Reduce(Funcall, list(...), x, right = TRUE)
 }
-`-->>` <- function(...){
+`-->>` <- function(...) {
     Funcall <- function(f, ...) f(...)
     function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
 }
- 
+
 # > `-->>`(f.(x, x-1), f.(x, x*10))(1:5)
 # [1]  0 10 20 30 40
 
@@ -328,7 +328,7 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 
 # particial application
 # an undercore symbol `_` is requited to bind variables
-pa <- function(expr, env_ = parent.frame()){
+pa <- function(expr, env_ = parent.frame()) {
   all_vars <- all.names(substitute(expr), functions = FALSE)
   underscores <- all_vars[grep("^\\_$|^\\_[0-9]+$", all_vars)]
   if (length(underscores) == 0)
@@ -346,14 +346,14 @@ pa <- function(expr, env_ = parent.frame()){
 # f1 <- pa(`_` * 2); f1(10)
 # f2 <- pa(D(`_`, "x")); f2(quote(x^4))
 # f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
-# 
+#
 # g <- function(x, y, z, w) 1000*x + 100*y + 10*z + 1*w
 # f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
 # f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
 
 # see https://gist.github.com/TobCap/6255395
-uncurry <- function(fun) { 
-  function(...){
+uncurry <- function(fun) {
+  function(...) {
     rec <- function(f, dots) {
       if (length(dots) == 0) f
       else rec(f(dots[[1]]), dots[-1])
@@ -417,7 +417,7 @@ flip_cr <- function(fun) {
 # > flip(sapply)(round, 1:10/100, 2)
 #  [1] 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10
 
-## current code returns incorrect result
+## current code returns correct result
 # (function(x) {
 #   s <- flip(substitute)
 #   print(substitute(x, environment()))
@@ -489,7 +489,7 @@ fix_ <- function(g) f <- g(f)
 memoizer <- function(f) {
   memo_ <- new.env()
   f_orig <- f
-  function(...){
+  function(...) {
     key <- paste(list(...), collapse=",")
     if (is.null(memo_[[key]])) memo_[[key]] <- f_orig(...)
     memo_[[key]]
@@ -498,9 +498,9 @@ memoizer <- function(f) {
 
 tracer <- function(f) {
   num <- 0
-  function(...){
+  function(...) {
     key <- paste(list(...), collapse=",")
-    num <<- num + 1 
+    num <<- num + 1
     suffix <- if (num <= 3) switch(num, "st", "nd", "rd") else "th"
     cat(num, suffix, " call with argument: ", key, "\n", sep = "")
     f(...)
@@ -555,8 +555,8 @@ fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 # [1] 8
 #
 # > unlist(eapply(environment(fibmemo)$memo_, identity))
-# 0 1 2 3 4 5 6 
-# 0 1 1 2 3 5 8 
+# 0 1 2 3 4 5 6
+# 0 1 1 2 3 5 8
 
 
 ### the same semantics
@@ -581,7 +581,7 @@ fib_maker <- function(f) function(x) if (x <= 1) x else f(x - 1) + f(x - 2)
 ## http://d.hatena.ne.jp/einblicker/20110108/1294448477
 ## http://d.hatena.ne.jp/einblicker/20110113/1294920315
 
-### U Combinator 
+### U Combinator
 ## http://www.ucombinator.org/
 ## U <- function(f) f(f)
 ## fib.u <- function(f) function(n) if(n <= 1) n else f(f)(n - 1)  + f(f)(n - 2)
@@ -596,7 +596,7 @@ promise_tracker <- function(`__sym__`, n = 1, strict = TRUE) {
   # see https://gist.github.com/TobCap/6473028
   if (strict) stopifnot(n <= sys.parent())
   stack_adjust <- 2
-  
+
   make_call1 <- function(x) {
     if (x == 0) call("substitute", quote(`__sym__`))
     else call("substitute", make_call1(x - 1))
@@ -630,7 +630,7 @@ call_list_cnv <- function(f.arg) {
 as.list_recursive <- function(x) {stopifnot(is.call(x)); call_list_cnv(x)}
 as.call_recursive <- function(x) {stopifnot(is.list(x)); call_list_cnv(x)}
 length_recursive <- function(x) {
-  if (!is.recursive(x)) length(x) 
+  if (!is.recursive(x)) length(x)
   else do.call(sum, lapply(as.list(x), length_recursive))
 }
 
@@ -645,7 +645,7 @@ replace_call <- function(expr, before, after) {
   stopifnot(is.language(expr))
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
-      if (is.symbol(before)){ # for formal parameters
+      if (is.symbol(before)) { # for formal parameters
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
@@ -674,22 +674,22 @@ replace_lang <- function (expr, before, after, can_accept_undefined_var = FALSE)
     after <- accept_undefined_var(after, parent.frame())
   }
   # before is passed as list even though it is a single symbole
-  before <- 
-    if (is.function(before)) before 
-    else if (is.list(before) || is.expression(before)) as.list(before) 
+  before <-
+    if (is.function(before)) before
+    else if (is.list(before) || is.expression(before)) as.list(before)
     else list(before) # Being passed to function `matched` requires to be list object.
   after <- if (is.expression(after)) as.list(after) else after
-  
-  matched <- 
-    if (is.function(before)) before 
+
+  matched <-
+    if (is.function(before)) before
     else function(m) any(vapply(before, identical, logical(1), m))
-    
+
   conv <- function(x) {
     if (is.pairlist(x) && !is.null(x)) {
-      if (is.function(before)){
+      if (is.function(before)) {
         ind <- match(TRUE, vapply(lapply(names(x), as.symbol), before, logical(1)))
         names(x)[ind] <- as.character(after)
-      } else if (is.symbol(before[[1]])){       
+      } else if (is.symbol(before[[1]])) {
         ind <- match(as.character(before), names(x))
         names(x)[ind] <- as.character(after)
       }
@@ -709,7 +709,7 @@ accept_undefined_var <- function(.x, env) {
   is_list_vector <- !is.symbol(expr) && (expr[[1]] == quote(c) || expr[[1]] == quote(list))
   w <- function(x) warning(
     paste0("the '", x,"' is an existing language object,so not interpreted as undefined variable"))
- 
+
   force_lang <- function(y) {
     first_char <- as.character(y)[[1]]
     if (is.character(y)) parse(text = y)[[1]] # character
@@ -718,7 +718,7 @@ accept_undefined_var <- function(.x, env) {
     else if (is.symbol(y) && exists(first_char, envir = env)) {w(first_char); eval(y)} # assigned language object
     else y # undefined, not language object, or not character object
   }
-  
+
   if (is_list_vector) lapply(as.list(expr)[-1], force_lang)
   else force_lang(expr)
 }
@@ -728,7 +728,7 @@ accept_undefined_var <- function(.x, env) {
 
 # > replace_symbol(quote(1+2+x^3), quote(x), quote(y))
 # 1 + 2 + y^3
-# > replace_symbol(quote(1+2+x^3), quote(2), quote(99)) 
+# > replace_symbol(quote(1+2+x^3), quote(2), quote(99))
 # 1 + 2 + x^3 # cannot replace value
 # > replace_call(quote(1+2+x^3), quote(2), quote(99))
 # 1 + 99 + x^3 # ok
@@ -798,14 +798,14 @@ nest_fun2 <- function(f, n) {
 # zero <- l.(f, x, x)                    # f.(f, f.(x, x))
 # one  <- l.(f, x, f(x))                 # f.(f, f.(x, f(x)))
 # two  <- l.(f, x, f(f(x)))              # f.(f, f.(x, f(f(x))))
-# num  <- l.(n, f, x, nest_fun(f, n)(x)) # f.(n, f.(f, f.(x, nest_fun(f, n)(x)))) 
+# num  <- l.(n, f, x, nest_fun(f, n)(x)) # f.(n, f.(f, f.(x, nest_fun(f, n)(x))))
 #
 # plus <- l.(m, n, f, x, m(f)(n(f)(x)))  # f.(m, f.(n, f.(f, f.(x, m(f)(n(f)(x))))))
 # succ <- l.(n, f, x, f(n(f)(x)))        # f.(n, f.(f, f.(x, f(n(f)(x)))))
 # mult <- l.(m, n, f, m(n(f)))           # f.(m, f.(n, f.(f, m(n(f)))))
 # exp  <- l.(m, n, n(m))                 # f.(m, f.(n, n(m)))
 # to_int <- l.(n, n(l.(n, n + 1))(0))     # f.(n, n(f.(n, n + 1))(0))
-# 
+#
 # to_int(plus(zero)(one))
 # to_int(plus(one)(two))
 # to_int(succ(one))
@@ -822,12 +822,12 @@ nest_fun2 <- function(f, n) {
 # not2 <- f.(m, m(f.(a, f.(b, b)))(f.(a, f.(b, a)))) # ok
 # if_ <- f.(m, f.(a, f.(b, m(a)(b))))
 
-# identical(and(true)(true), true) 
+# identical(and(true)(true), true)
 # identical(and(true)(false), false)
 # identical(and(false)(true), false)
 # identical(and(false)(false), false)
 #
-# identical(or(true)(true), true) 
+# identical(or(true)(true), true)
 # identical(or(true)(false), true)
 # identical(or(false)(true), true)
 # identical(or(false)(false), false)
@@ -838,27 +838,27 @@ nest_fun2 <- function(f, n) {
 # to_int(if_(true)(one)(two))
 # to_int(if_(false)(one)(two))
 
-lang2char <- function(expr, type = c("rexp", "sexp")){
+lang2char <- function(expr, type = c("rexp", "sexp")) {
   type <- match.arg(type)
   stopifnot(is.call(expr))
-  
+
   r <- list(
-    fst = function(x) as.character(list(x[[1]])), 
-    coll = ", ", 
+    fst = function(x) as.character(list(x[[1]])),
+    coll = ", ",
     print.out = function(first, rest) paste0(first, "(", rest, ")"))
-    
+
   s <- list(
     fst = function(x) as.character(x[[1]]),
     coll = " ",
-    print.out = function(first, rest) paste0("(", first, " ", rest, ")")) 
-    
+    print.out = function(first, rest) paste0("(", first, " ", rest, ")"))
+
   . <- if (type == "rexp") r else s
-  
+
   .$rst <- function(k) paste0(
     lapply(k, function(x) {if (length(x) == 1) as.character(x) else as.char(x)}) , collapse = .$coll)
-  
+
   as.char <- function(k) .$print.out(first = .$fst(k), rest = .$rst(k[-1]))
-  
+
   noquote(as.char(expr))
 }
 
