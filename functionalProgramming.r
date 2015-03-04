@@ -368,39 +368,42 @@ uncurry <- function(fun) {
 # [1] 6
 
 ###
-## http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
 flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
   args_new <- args_orig <- formals(args(match.fun(fun)))
   stopifnot(1 < r, l < length(args_orig), l < r)
-  
+
   names(args_new)[c(r, l)] <- names(args_orig)[c(l, r)]
   args_new[c(r, l)] <- args_orig[c(l, r)]
-  
-  if (typeof(fun) == "closure") {
-    eval(call("function", as.pairlist(args_new), body(fun)), environment(fun))
-  } else { ## special & builtin
-    ## the previous code can work for "flip(substitute)(list(x=10), x+y)"
-    # fun_sym <- substitute(fun)
-    # body_ <- quote({
-      # called <- sys.call()
-      # called[-1] <- called[-1][c(r, l)]
-      # called[[1]] <- fun_sym
-      # eval(called, f_env)
-    # })
-    # f_env <- if (is.null(environment(fun))) .BaseNamespaceEnv else environment(fun)
-    # eval(call("function", as.pairlist(args_new), body_), environment(), f_env)
-    
-    body_ <- as.call(c(substitute(fun), lapply(names(args_orig), as.symbol)))
-    f_env <- if (is.null(environment(fun))) .BaseNamespaceEnv else environment(fun)
-    eval(call("function", as.pairlist(args_new), body_), f_env)
+  fun_sym <- substitute(fun)
+
+  make_special_body <- function() {
+    call("{",
+         quote(called <- sys.call()), # match.call(expand.dot = FALSE) ?
+         as.call(c(quote(`<-`), quote(idx), list(c(r, l)))),
+         quote(called[-1] <- called[-1][idx]),
+         as.call(c(quote(`<-`), quote(called[[1]]), fun_sym)),
+         as.call(c(quote(eval), quote(called), env_))
+    )
   }
+
+  body_ <-
+    switch(typeof(fun)
+           , closure = body(fun)
+           , builtin = as.call(c(fun_sym, lapply(names(args_orig), as.symbol)))
+           , special = make_special_body()
+    )
+
+  eval(call("function", as.pairlist(args_new), body_), environment(fun), baseenv())
 }
+
+# > flip(substitute)(list(x=10), x+y)
+# 10 + y
 
 flip_cr <- function(fun) {
   arg1 <- formals(args(fun))
   arg2 <- body(fun)[[2]]
   stopifnot(is.pairlist(arg1) && is.pairlist(arg2))
-  
+
   eval(call("function", arg2, call("function", arg1, body(fun)[[3]])), environment(fun))
 }
 
