@@ -239,48 +239,76 @@ tap <- function(x, fun = print, ...) {
 # > (pi/2) %|% sin %|% log %|% cos
 # > (pi/2) %|>% sin %|>% log %|>% cos
 
-### currying
-## Arguments are evaluated before passing; it is different from R's semantics.
-## Special functions such as substitute() can not work with curry()
-## > substitute(x, list(x = 1))
-## [1] 1
-## > curry(substitute)(x)(list(x=1))
-## expr
 
-curry <- function(f) {
-  stopifnot(is.function(f))
+### making an arbitrary function curried
+curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
+  # if there are any language object handling functions such as substitute() or match.call() inside body(f),
+  # `as_special = TRUE` is required
+  # curry(bquote)(a+.(b))(list(b=10)) => expr
+  # curry(bquote, as_special = TRUE)(a+.(b))(list(b=10)) => a + 10
+
+  # `ls`, `ls.str` # a function that checks a formal parameter w/o default value by `missing` will error
+
+  # http://cran.r-project.org/doc/manuals/r-release/R-ints.html#Prototypes-for-primitives
+  stopifnot(is.function(f) && !(typeof(f) == "special" && is.null(args(f))))
+  # > names(Filter(function(f) is.function(f) && (typeof(f) == "special" && is.null(args(f))), as.list(baseenv())))
+  #  [1] "$"        "="        "@"        "["        "{"        "~"        "repeat"   "return"   "&&"
+  # [10] "next"     "@<-"      "<-"       "break"    "[["       "[[<-"     "if"       "$<-"      "||"
+  # [19] "function" "while"    "for"      "[<-"      "<<-"
 
   make_body <- function(args_) {
     if (length(args_) == 0)
-      if (typeof(f) == "closure") body(f)
-      else as.call(c(f, lapply(names(f_args), as.symbol)))
+      switch(if (isTRUE(as_special)) "special" else typeof(f)
+      , closure = body(f)
+      , special = make_special_body()
+      , builtin = as.call(c(f, setNames(lapply(names(f_args), as.symbol), names(f_args))))
+      )
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
 
+  make_special_body <- function() {
+    # `f_sym`, `f_args`, `env_` are parent environment's variable
+    call(
+      "{",
+      quote(
+        sub2 <- function(expr, env_target) {
+          stopifnot(is.language(expr))
+          eval(substitute(substitute(e, env = env_target), list(e = expr)))
+        }
+      ),
+      as.call(c(quote(`<-`), quote(f_sym), f_sym)),
+      as.call(c(quote(`<-`), quote(f_args_rev),
+                list(lapply(rev(names(f_args)), function(x) as.symbol(x))))),
+      quote({
+        args_ <- list()
+        e <- environment()
+        while (length(f_args_rev) > 0) {
+          f_args_head <- f_args_rev[[1]]
+          arg_ <-
+            if (f_args_head == "...")  as.list(sub2(call("list", f_args_head), e))[-1]
+          else sub2(f_args_head, e)
+          if (is.null(arg_)) arg_ <- list(NULL) # if default value is NULL
+          args_ <- append(arg_, args_)
+          f_args_rev <- f_args_rev[-1]
+          e <- parent.env(e)
+        }
+        fun_new <- as.call(c(f_sym, args_))
+      }),
+      as.call(c(quote(eval), quote(fun_new), env_))
+    )
+  }
+  f_sym <- substitute(f)
   f_args <- formals(args(f))
+
   if (is.null(f_args)) f
   else eval(make_body(f_args), envir = environment(f), baseenv())
 }
 
-### previous eager version
-# curry <- function (fun, env_ = parent.frame()) {
-#   has_quoted <- FALSE
-#   iter <- function(len, arg) {
-#     if (len == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
-#     else function(x) {
-#       if (is.language(x)) has_quoted <<- TRUE
-#       iter(len - 1, append(arg, list(x)))}}
-#   iter(length(formals(args(fun))), list())
-# }
+# > curry(function(x, y, z) x + y + z)
+# function (x)
+#   function(y) function(z) x + y + z
 
 # > curry(function(x, y, z) x + y + z)(1)(2)(3)
-# [1] 6
-### `f.` is already defined above and save your typing.
-# > curry(f.(x, y, z, x + y + z))(1)(2)(3)
-# [1] 6
-
-# Arrow operaters defined at #Line 154-149 are useful.
-# > f.(x, y, z, x + y + z) %|>% curry %<|% 1 %<|% 2 %<|% 3
 # [1] 6
 
 # plus2 <- curry(`+`)(2)
@@ -288,35 +316,62 @@ curry <- function(f) {
 
 curry_dots <- function (fun, env_ = parent.frame()) {
   fun_args <- formals(args(fun))
-  has_quoted <- FALSE
   dots_pos_rev <- which(rev(names(fun_args)) == "...")
   if (length(dots_pos_rev) == 0) stop("`fun` do not have a dot-dot-dot argument")
 
-  iter <- function(pos, arg) {
-    if (pos == 0) do.call(fun, arg, quote = has_quoted, envir = env_)
-    else
-      function(...) {
-        if (pos == dots_pos_rev && nargs() == 0) return(iter(pos - 1, arg))
-        x <- if (nargs() == 0) rev(fun_args)[pos] else list(...)
-        if (is.language(x)) has_quoted <<- TRUE
-        iter(if (pos == dots_pos_rev) pos else pos - 1, append(arg, x)) }}
+  iter <- function(pos, acc_arg) {
+    if (pos == 0) {
+      eval(as.call(c(fun, acc_arg)), env_)
+    } else {
 
+      arg_ <-
+        if (pos == dots_pos_rev) as.pairlist(alist(...=))
+      else as.pairlist(rev(fun_args)[pos])
+
+      body_ <- call(
+        "{",
+        call("<-", quote(pos), pos),
+        call("<-", quote(dots_pos_rev), dots_pos_rev),
+        call("<-", quote(acc_arg), acc_arg),
+        call("<-", quote(iter), iter),
+        quote({
+          if (pos == dots_pos_rev && nargs() > 1) stop("... accepts only one argument.")
+          if (pos == dots_pos_rev && nargs() == 0) {
+            return(iter(pos - 1, acc_arg))
+          }
+          x_val <- as.pairlist(as.list(sys.call())[-1])
+          x_formal <- formals(sys.function())
+          x <-
+            if (is.null(x_val)) x_formal # default value
+            else setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
+          iter(if (pos == dots_pos_rev) pos else pos - 1, append(acc_arg, x))
+        })
+      )
+
+      eval(call("function", arg_, body_), parent.frame())
+    }
+  }
   iter(length(fun_args), list())
 }
 
-## If curried function has dots argument, you can recogize its end by empty (not NULL) argument just like f().
-# > curry(sum)(1)(2)(3)
-# Error: attempt to apply non-function
-
-# > curry_dots(sum)(1)(2)(NA)(3)()(na.rm = TRUE)
+## you can recogize `...` end by calling empty (not NULL) argument just like f().
+# > curry_dots(sum)(1)(2)(NA)(3)()(TRUE)
 # [1] 6
+
+# > curry(sum)(1, 2, NA, 3)(TRUE)
+# [1] 6
+
+# > curry(vapply)(1:5)(function(x, y, z) x + y + z)(numeric(1))(y=100, z = 1/100)()
+# [1] 101.01 102.01 103.01 104.01 105.01
+
+# > curry_dots(vapply)(1:5)(function(x, y, z) x + y + z)(numeric(1))(y=100)(z = 1/100)()()
+# [1] 101.01 102.01 103.01 104.01 105.01
 
 # > call("rnorm", 5, 100)
 # rnorm(5, 100)
 
 # > curry(call)("rnorm")(5, 100)
-# Error in (curry(call)("rnorm"))(5, 100) : 
-#   '...' used in an incorrect context
+# rnorm(5, 100)
 
 # > curry_dots(call)("rnorm")(5)(100)()
 # rnorm(5, 100)
