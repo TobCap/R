@@ -1,4 +1,4 @@
-﻿### functional operators and useful functions
+### functional operators and useful functions
 
 ## Auxiliary function
 as.formals <- function(x, value = list(quote(expr=))) {
