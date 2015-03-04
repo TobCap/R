@@ -1,4 +1,4 @@
-﻿### functional operators and useful functions
+### functional operators and useful functions
 
 ## Auxiliary function
 as.formals <- function(x, value = list(quote(expr=))) {
@@ -286,7 +286,7 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
           f_args_head <- f_args_rev[[1]]
           arg_ <-
             if (f_args_head == "...")  as.list(sub2(call("list", f_args_head), e))[-1]
-          else sub2(f_args_head, e)
+            else sub2(f_args_head, e)
           if (is.null(arg_)) arg_ <- list(NULL) # if default value is NULL
           args_ <- append(arg_, args_)
           f_args_rev <- f_args_rev[-1]
@@ -443,9 +443,9 @@ flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
 
   body_ <-
     switch(typeof(fun)
-           , closure = body(fun)
-           , builtin = as.call(c(fun_sym, lapply(names(args_orig), as.symbol)))
-           , special = make_special_body()
+    , closure = body(fun)
+    , builtin = as.call(c(fun_sym, lapply(names(args_orig), as.symbol)))
+    , special = make_special_body()
     )
 
   eval(call("function", as.pairlist(args_new), body_), environment(fun), baseenv())
@@ -492,7 +492,7 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
-`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
+l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
