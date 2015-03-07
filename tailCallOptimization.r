@@ -8,17 +8,21 @@ tco <- function(f_, env_ = parent.frame()) {
   body(f_) <- replace_symbol(body(f_), quote(Recall), quote(list))
   
   f_args <- formals(args(f_))
+  f_args_name <- names(f_args)
+  
   f_loop_body <-
-    quote({
-      f_args_len <- length(f_args)
-      ans <- mget(names(f_args))
+    bquote({
+      f_ <- .(f_)
+      f_args_name <- .(names(f_args))
+      f_args_len <- length(f_args_name)
+      ans <- mget(f_args_name)
       while(is.list(ans) && length(ans) == f_args_len) {
         ans <- do.call(f_, ans)
       }
       ans
     })
-
-  eval(call("function", f_args, f_loop_body), envir = environment(), enclos = env_)  
+    
+  eval(call("function", f_args, f_loop_body), envir = environment(f_), enclos = baseenv())  
 }
 
 sum_rec <- function(n, acc = 0) {
