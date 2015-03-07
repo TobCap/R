@@ -242,8 +242,9 @@ tap <- function(x, fun = print, ...) {
 
 ### making an arbitrary function curried
 curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
-  # if there are any language object handling functions such as substitute() or match.call() inside body(f),
-  # `as_special = TRUE` is required
+  # `as_special = TRUE` is required if typeof(f) is "closure" and there are any language object handling 
+  # functions such as substitute() or match.call() inside body(f)
+  # 
   # curry(bquote)(a+.(b))(list(b=10)) => expr
   # curry(bquote, as_special = TRUE)(a+.(b))(list(b=10)) => a + 10
 
@@ -260,48 +261,55 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
     if (length(args_) == 0)
       switch(if (isTRUE(as_special)) "special" else typeof(f)
       , closure = body(f)
-      , special = make_special_body()
       , builtin = as.call(c(f, stats:::setNames(lapply(names(f_args), as.symbol), names(f_args))))
+      , special = make_special_body()
       )
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
   }
 
   make_special_body <- function() {
     # `f_sym`, `f_args`, `env_` are parent environment's variable
-    call(
-      "{",
-      quote(
-        sub2 <- function(expr, env_target) {
-          stopifnot(is.language(expr))
-          eval(substitute(substitute(e, env = env_target), list(e = expr)))
-        }
-      ),
-      as.call(c(quote(`<-`), quote(f_sym), f_sym)),
-      as.call(c(quote(`<-`), quote(f_args_rev),
-                list(lapply(rev(names(f_args)), function(x) as.symbol(x))))),
-      quote({
-        args_ <- list()
-        e <- environment()
-        while (length(f_args_rev) > 0) {
-          f_args_head <- f_args_rev[[1]]
-          arg_ <-
-            if (f_args_head == "...")  as.list(sub2(call("list", f_args_head), e))[-1]
-            else sub2(f_args_head, e)
-          if (is.null(arg_)) arg_ <- list(NULL) # if default value is NULL
-          args_ <- append(arg_, args_)
-          f_args_rev <- f_args_rev[-1]
-          e <- parent.env(e)
-        }
-        fun_new <- as.call(c(f_sym, args_))
-      }),
-      as.call(c(quote(eval), quote(fun_new), env_))
-    )
+    bquote({
+      sub2 <- function(expr, env_target) {
+        stopifnot(is.language(expr))
+        eval(substitute(substitute(e, env = env_target), list(e = expr)))
+      }
+      
+      f_sym <- .(f_sym)
+      f_args_rev <- lapply(rev(names(.(f_args))), function(x) as.symbol(x))
+      
+      args_ <- list()
+      e <- environment()
+      
+      while (length(f_args_rev) > 0) {
+        f_args_head <- f_args_rev[[1]]
+        
+        arg_ <-
+          if (f_args_head == "...")  as.list(sub2(call("list", f_args_head), e))[-1]
+          else sub2(f_args_head, e)
+          
+        if (is.null(arg_)) arg_ <- list(NULL) # if default value is NULL
+        args_ <- append(arg_, args_)
+        
+        # next loop
+        f_args_rev <- f_args_rev[-1]
+        e <- parent.env(e)
+      }
+      
+      fun_new <- as.call(c(f_sym, args_))
+      eval(fun_new, .(env_))
+      # do.call(f_sym, args_, quote = TRUE, envir = .(env_))
+
+    }, parent.env(environment()))
   }
+  
   f_sym <- substitute(f)
   f_args <- formals(args(f))
 
   if (is.null(f_args)) f
   else eval(make_body(f_args), envir = environment(f), baseenv())
+  # baseenv() is used only if environment(f) is NULL; that means `f` is special or builtin function in baseenv()
+  # except methods::Quote and methods::`el<-` that are S-Plus compatible functions
 }
 
 # > curry(function(x, y, z) x + y + z)
@@ -314,43 +322,54 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
 # plus2 <- curry(`+`)(2)
 # plus2(10) # 12
 
+### `seq.int` is exceptional due to constructing formal parameters inside C-lang level
+### https://github.com/wch/r-source/blob/ed415a8431b32e079100f50a846e4769aeb54d5a/src/main/seq.c#L725-L733
+
+# > seq.int_c <- curry(seq.int)
+# > seq.int_c(1)(5)()()()()
+# Error in ((((seq.int_c(1)(5))())())())() : 
+#   argument "by" is missing, with no default
+
+### what you need is to use `quote(expr=)`
+# > seq.int_c(1)(5)(quote(expr=))(quote(expr=))(quote(expr=))()
+# [1] 1 2 3 4 5
+
+
 curry_dots <- function (fun, env_ = parent.frame()) {
   fun_args <- formals(args(fun))
   dots_pos_rev <- which(rev(names(fun_args)) == "...")
+  
   if (length(dots_pos_rev) == 0) stop("`fun` do not have a dot-dot-dot argument")
 
   iter <- function(pos, acc_arg) {
-    if (pos == 0) {
-      eval(as.call(c(fun, acc_arg)), env_)
-    } else {
-
-      arg_ <-
-        if (pos == dots_pos_rev) as.pairlist(alist(...=))
+    if (pos == 0) return(eval(as.call(c(fun, acc_arg)), env_))
+    
+    arg_ <-
+      if (pos == dots_pos_rev) as.pairlist(alist(...=))
       else as.pairlist(rev(fun_args)[pos])
 
-      body_ <- call(
-        "{",
-        call("<-", quote(pos), pos),
-        call("<-", quote(dots_pos_rev), dots_pos_rev),
-        call("<-", quote(acc_arg), acc_arg),
-        call("<-", quote(iter), iter),
-        quote({
-          if (pos == dots_pos_rev && nargs() > 1) stop("... accepts only one argument.")
-          if (pos == dots_pos_rev && nargs() == 0) {
-            return(iter(pos - 1, acc_arg))
-          }
-          x_val <- as.pairlist(as.list(sys.call())[-1])
-          x_formal <- formals(sys.function())
-          x <-
-            if (is.null(x_val)) x_formal # default value
-            else stats:::setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
-          iter(if (pos == dots_pos_rev) pos else pos - 1, append(acc_arg, x))
-        })
-      )
-
-      eval(call("function", arg_, body_), parent.frame())
-    }
+    body_ <- bquote({
+      pos <- .(pos)
+      dots_pos_rev <- .(dots_pos_rev)
+      acc_arg <- .(acc_arg)
+      iter <- .(iter)
+      
+      if (pos == dots_pos_rev && nargs() > 1) stop("... accepts only one argument.")
+      if (pos == dots_pos_rev && nargs() == 0) return(iter(pos - 1, acc_arg))
+      
+      x_val <- as.pairlist(as.list(sys.call())[-1])
+      x_formal <- formals(sys.function())
+      x <-
+        if (is.null(x_val)) x_formal # default value
+        else stats:::setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
+        #else `names<-`(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
+        
+      iter(if (pos == dots_pos_rev) pos else pos - 1, append(acc_arg, x))
+    })
+    
+    eval(call("function", arg_, body_), parent.frame())
   }
+  
   iter(length(fun_args), list())
 }
 
@@ -386,10 +405,12 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 pa <- function(expr, env_ = parent.frame()) {
   all_vars <- all.names(substitute(expr), functions = FALSE)
   underscores <- all_vars[grep("^\\_$|^\\_[0-9]+$", all_vars)]
+  
   if (length(underscores) == 0)
     stop("A binding variable must start with underscore and ends with numeric.")
   if (anyDuplicated.default(underscores) > 0)
     stop("Binding variables must be different from each other.")
+    
   created_formals <- as.formals(underscores[order(underscores)])
 
   make_body <- function(args_) {
@@ -409,11 +430,11 @@ pa <- function(expr, env_ = parent.frame()) {
 # see https://gist.github.com/TobCap/6255395
 uncurry <- function(fun) {
   function(...) {
-    rec <- function(f, dots) {
+    iter <- function(f, dots) {
       if (length(dots) == 0) f
-      else rec(f(dots[[1]]), dots[-1])
+      else iter(f(dots[[1]]), dots[-1])
     }
-    rec(fun, list(...))
+    iter(fun, list(...))
   }
 }
 # > g <- function(x) function(y) function(z) x + y + z
@@ -432,13 +453,13 @@ flip <- function(fun, l = 1, r = 2, env_ = parent.frame()) {
   fun_sym <- substitute(fun)
 
   make_special_body <- function() {
-    call("{",
-         quote(called <- sys.call()), # match.call(expand.dot = FALSE) ?
-         as.call(c(quote(`<-`), quote(idx), list(c(r, l)))),
-         quote(called[-1] <- called[-1][idx]),
-         as.call(c(quote(`<-`), quote(called[[1]]), fun_sym)),
-         as.call(c(quote(eval), quote(called), env_))
-    )
+    bquote({
+      called <- sys.call() # match.call(expand.dot = FALSE) ?
+      idx <- .(c(r, l))
+      called[-1] <- called[-1][idx]
+      called[[1]] <- .(fun_sym)
+      eval(called, .(env_))
+    }, parent.env(environment()))
   }
 
   body_ <-
@@ -492,8 +513,11 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
-l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
+`λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
+# cat("\u03BB\n")
+# λ
+
 # λ(g, x, g(g(x)))(λ(y, y+1))(5)
 # f.(g, f.(x, g(g(x))))(f.(y, y+1))(5)
 # l.(g, l.(x, g(g(x))))(l.(y, y+1))(5) # can work as a substitute for f.()
