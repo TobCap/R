@@ -10,7 +10,17 @@ local({
   
   options(stringsAsFactors = FALSE)
   options(max.print = 1e2)
-  options(error=quote(utils::dump.frames()))
+  options(error = quote(utils:::dump.frames()))
+  
+  options(
+    warnPartialMatchAttr = TRUE,
+    warnPartialMatchDollar = TRUE,
+    warnPartialMatchArgs = TRUE)
+    
+  options(warn = 2)
+  
+  utils:::rc.settings(ipck = TRUE)
+
 })
 
 # s <- function(n) if (n == 1) 0 else n + s(n - 1)
