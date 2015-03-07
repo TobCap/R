@@ -245,8 +245,8 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
   # `as_special = TRUE` is required if typeof(f) is "closure" and there are any language object handling 
   # functions such as substitute() or match.call() inside body(f)
   # 
-  # curry(bquote)(a+.(b))(list(b=10)) => expr
-  # curry(bquote, as_special = TRUE)(a+.(b))(list(b=10)) => a + 10
+  # curry(bquote)(a + .(b))(list(b = 10)) => expr
+  # curry(bquote, as_special = TRUE)(a + .(b))(list(b = 10)) => a + 10
 
   # `ls`, `ls.str` # a function that checks a formal parameter w/o default value by `missing` will error
 
@@ -261,7 +261,7 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
     if (length(args_) == 0)
       switch(if (isTRUE(as_special)) "special" else typeof(f)
       , closure = body(f)
-      , builtin = as.call(c(f, stats:::setNames(lapply(names(f_args), as.symbol), names(f_args))))
+      , builtin = as.call(c(f, `names<-`(lapply(names(f_args), as.symbol), names(f_args))))
       , special = make_special_body()
       )
     else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
@@ -307,7 +307,7 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
   f_args <- formals(args(f))
 
   if (is.null(f_args)) f
-  else eval(make_body(f_args), envir = environment(f), baseenv())
+  else eval(make_body(f_args), environment(f), baseenv())
   # baseenv() is used only if environment(f) is NULL; that means `f` is special or builtin function in baseenv()
   # except methods::Quote and methods::`el<-` that are S-Plus compatible functions
 }
@@ -361,8 +361,8 @@ curry_dots <- function (fun, env_ = parent.frame()) {
       x_formal <- formals(sys.function())
       x <-
         if (is.null(x_val)) x_formal # default value
-        else stats:::setNames(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
-        #else `names<-`(x_val, if (pos == dots_pos_rev) names(x_val) else names(x_formal))
+        else if (pos == dots_pos_rev) x_val
+        else `names<-`(x_val, names(x_formal))
         
       iter(if (pos == dots_pos_rev) pos else pos - 1, append(acc_arg, x))
     })
