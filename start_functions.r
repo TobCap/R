@@ -181,9 +181,9 @@ lookup <- function(values, tbl, search.col = 1) {
 }
 
 ###
-cd <- function(dir_) {
-  if (missing(dir_)) dir_ <- Sys.getenv("HOME")
-  if (!nzchar(dir_)) stop("Enter valid directory path")
+cd <- function(dir_ = Sys.getenv("HOME")) {
+  stopifnot(is.character(dir_), length(dir_) == 1, isTRUE(file.info(dir_)$isdir))
+  
   on.exit(utils::setWindowTitle(getwd()))
   setwd(dir_)
 }
