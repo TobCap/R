@@ -9,30 +9,28 @@ local({
   ## invisible(compiler:::enableJIT(3))
   
   options(stringsAsFactors = FALSE)
-  options(max.print = 1e2)
+  options(max.print = 2e2)
   options(error = quote(utils:::dump.frames()))
   
   options(
     warnPartialMatchAttr = TRUE,
     warnPartialMatchDollar = TRUE,
     warnPartialMatchArgs = TRUE)
-    
-  options(warn = 2)
   
   utils:::rc.settings(ipck = TRUE)
 
 })
 
-# s <- function(n) if (n == 1) 0 else n + s(n - 1)
+# s <- function(n) if (n == 0) 0 else 1 + s(n - 1)
 
 # > sessionInfo()
-# R version 3.0.2 (2013-09-25)
+# R version 3.1.2 (2014-10-31)
 # Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 # --vanilla
+# > s(1664)
+# [1] 1664
 # > s(1665)
-# [1] 1386944
-# > s(1666)
 # Error: evaluation nested too deeply: infinite recursion / options(expressions=)?
 
 options(expressions = 5e5)
@@ -40,9 +38,9 @@ options(expressions = 5e5)
 # Cstack_info()
 
 # options(expressions = 5e5)
+# > s(6248)
+# [1] 6248
 # > s(6249)
-# [1] 19528124
-# > s(6250)
 # Error: protect(): protection stack overflow
 
 # The command-line option '--max-ppsize' controls the maximum size
@@ -50,17 +48,16 @@ options(expressions = 5e5)
 # accepted is 500000.
 
 # --max-ppsize=500000 and options(expressions = 5e5)
-# > s(26040)
-# [1] 339053819
-# > s(26041)
-# Error: C stack usage is too close to the limit
-
+# > s(25056)
+# [1] 25056
+# > s(25057)
+# Error: C stack usage  63754052 is too close to the limit
 
 # load functions from github and attach them in the search path.
 # load startup packages
 local({
   git_dir_url <- "https://raw.github.com/TobCap/R/master"
-  files <- c("startFunctions.r", "functionalProgramming.r", "tailCallOptimization.r")
+  files <- c("start_functions.r", "functional_programming.r", "tail_call_optimization.r")
   git_files <- file.path(git_dir_url, files)
   startup_packages <- c("microbenchmark")
   # startup_packages <- c(
