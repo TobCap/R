@@ -1,22 +1,31 @@
 # see https://gist.github.com/TobCap/6482462
 tco <- function(f_, env_ = parent.frame()) {
-  replace_symbol <- function(expr, before, after) {
-    eval(substitute(substitute(e, `names<-`(list(after), as.character(before))), list(e = expr)))
+  stopifnot(typeof(f_) == "closure")
+  
+  target_char <- as.character(c(substitute(f_), quote(Recall)))
+  marked_name <- "tail_call_opt"
+  
+  mark_recursive_call <- function(expr) {
+    if (length(expr) <= 1)
+      expr
+    else if (as.character(expr[[1]]) %in% target_char)
+      call("class<-", `[[<-`(expr, 1, quote(list)), marked_name) 
+    else if (is.pairlist(expr))
+      as.pairlist(lapply(expr, mark_recursive_call))
+    else 
+      as.call(lapply(expr, mark_recursive_call))
   }
   
-  body(f_) <- replace_symbol(body(f_), substitute(f_), quote(list))
-  body(f_) <- replace_symbol(body(f_), quote(Recall), quote(list))
-  
+  body(f_) <- mark_recursive_call(body(f_))
   f_args <- formals(args(f_))
-  f_args_name <- names(f_args)
   
   f_loop_body <-
     bquote({
       f_ <- .(f_)
-      f_args_name <- .(names(f_args))
-      f_args_len <- length(f_args_name)
-      ans <- mget(f_args_name)
-      while(is.list(ans) && length(ans) == f_args_len) {
+      
+      # initial value
+      ans <- `class<-`(mget(.(names(f_args))), .(marked_name))
+      while(inherits(ans, "tail_call_opt")) {
         ans <- do.call(f_, ans)
       }
       ans
