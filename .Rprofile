@@ -120,7 +120,7 @@ local({
   }
   
   if (load_default_packages) {
-    # load.packages() is defined in above "startFunctions.r"
+    # load.packages() is defined in above "start_functions.r"
     if (exists("load.packages")) load.packages(startup_packages)
     else {
       for (x in startup_packages){

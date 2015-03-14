@@ -4,21 +4,21 @@ library2 <- function(package.name, ...) {
   library(package.name, character.only = TRUE, ...)
 }
 
-load.packages <- (function(){
-  if(!.Platform$OS.type == "windows")
+load_packages <- (function() {
+  if (!.Platform$OS.type == "windows")
     message("I don't check if it works on mac or linux.")
   repos.mem <- character(0)
   p <- function(...) cat("###", ..., "\n")
   # "cran.packages" will be created in this environment by delayedAssign function.
   
-  function(packageNames, repos = getOption("repos"), lib.loc = NULL){
+  function(packageNames, repos = getOption("repos"), lib.loc = NULL) {
     stopifnot(is.character(packageNames))
     loaded.package <- sub("package:", "", search())
-    if(is.null(lib.loc))
+    if (is.null(lib.loc))
       local.lib <- utils:::installed.packages()[,c("Package", "Version")]
     foundInCRAN <- TRUE
     
-    if(!setequal(repos.mem, repos)){
+    if (!setequal(repos.mem, repos)) {
       repos.mem <<- unique(c(repos.mem, repos))
       delayedAssign("cran.packages", {
           p("Accessing CRAN via Internet takes few seconds")
@@ -27,15 +27,15 @@ load.packages <- (function(){
         , assign.env = parent.env(environment()))
     }
     
-    for(pkg in packageNames){
-      if(pkg %in% loaded.package) {
+    for(pkg in packageNames) {
+      if (pkg %in% loaded.package) {
         p(pkg, "is in use and nothing is done.")
-      } else if(pkg %in% local.lib[,"Package"]){
+      } else if (pkg %in% local.lib[,"Package"]) {
         suppressPackageStartupMessages(library(pkg, character.only = TRUE, quietly = TRUE, lib.loc = lib.loc))
         p(local.lib[pkg,], "loaded")
-      } else if(length(cran.packages) == 0){
+      } else if (length(cran.packages) == 0) {
         p(pkg, "is not found in local and you cannot access to CRAN.")
-      } else if(!(pkg %in% cran.packages[,"Package"])){    
+      } else if (!(pkg %in% cran.packages[,"Package"])) {    
         p(pkg, "is not found in local and not listed in current CRAN.")
         foundInCRAN <- FALSE
       } else {
@@ -46,7 +46,7 @@ load.packages <- (function(){
       utils::flush.console()
     } 
     
-    if(!foundInCRAN) p("Some packages are not found in a current CRAN.\n 
+    if (!foundInCRAN) p("Some packages are not found in a current CRAN.\n 
       If you want to install them from r-forge or Omegahat,\n
       do firstly setRepositories() and select repos, then call me again.")
     
@@ -55,49 +55,52 @@ load.packages <- (function(){
 })()
 
 # refers to http://ofmind.net/doc/r-tips
-read.cb <- function(header = TRUE, ...){
+read_cb <- function(header = TRUE, ...) {
   utils::read.table(file = "clipboard", header = header, ...)
 }
-write.cb <- function(data, sep = "\t", header = TRUE, row.names = FALSE, 
-  col.names = ifelse(header && row.names, NA, header), qmethod="double", ...){
+write_cb <- function(data, sep = "\t", header = TRUE, row.names = FALSE, 
+  col.names = ifelse(header && row.names, NA, header), qmethod="double", ...) {
   utils::write.table(data, file = "clipboard", sep = sep, row.names = row.names,
   col.names = col.names, qmethod = qmethod, ...)
 }
 
 # quit instead of q()
-# environment name is along with this file name itself. 
-makeActiveBinding("Q", q, env = as.environment("startFunctions.r")) 
+makeActiveBinding("Q", q, env = attach(NULL, name = "q"))
 # class(Q) <- Q <- "ask"; print.ask <- q
 
 `%!in%` <- Negate(`%in%`)
-`%??%` <- function(x, y) if(is.null(x)) y else x
-is.nil <- function(x) is.null(x) || length(x) == 0 && is.list(x)
+`%??%` <- function(x, y) if (is.null(x)) y else x
+is_nil <- function(x) is.null(x) || length(x) == 0 && is.list(x)
 
 ## matrix operation
-`%^%` <- `%**%` <- function(mat, n, acc = diag(1, dim(mat))){
+`%^%` <- `%**%` <- function(mat, n, acc = diag(1, dim(mat))) {
   if (n == 0) acc
   else if (n %% 2 == 0) Recall(mat %*% mat, n / 2, acc)
   else Recall(mat, n - 1, mat %*% acc)
 }
-rot90 <- function(m, k = 1){
-  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
-  (function(M, n){
-    if(n == 0) return(M)
-    else if(n == 2) return(M[nrow(M):1, ncol(M):1])
+
+rot90 <- function(m, k = 1) {
+  if (length(dim(m)) != 2) stop("only 2 dim is acceptable")
+  (function(M, n) {
+    if (n == 0) return(M)
+    else if (n == 2) return(M[nrow(M):1, ncol(M):1])
     else Recall(t(M)[ncol(M):1, ], n - 1)
   })(m, as.integer(k) %% 4)
 }
-fliplr <- function(m){
-  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+
+fliplr <- function(m) {
+  if (length(dim(m)) != 2) stop("only 2 dim is acceptable")
   m[, ncol(m):1]
 }
-flipud <- function(m){
-  if(length(dim(m)) != 2) stop("only 2 dim is acceptable")
+
+flipud <- function(m) {
+  if (length(dim(m)) != 2) stop("only 2 dim is acceptable")
   m[nrow(m):1, ]
 }
+
 repmat <- function(m, nr, nc = nr) {
-  if(length(dim(m)) > 2) stop("over 3 dim is unacceptable")
-  if(nr <= nc) 
+  if (length(dim(m)) > 2) stop("over 3 dim is unacceptable")
+  if (nr <= nc) 
     do.call(cbind, rep.int(list(do.call(rbind, rep.int(list(m), nr))), nc))
   else
     do.call(rbind, rep.int(list(do.call(cbind, rep.int(list(m), nc))), nr))
@@ -135,7 +138,7 @@ list2 <- function(...) {
 
 
 ## The answer keeps as matrix.
-apply.mat <- function(X, MARGIN, FUN, ...) {
+apply_mat <- function(X, MARGIN, FUN, ...) {
   if (!(MARGIN == 1 || MARGIN == 2)) stop("MARGIN must be 1 or 2.")
   if (!is.matrix(X)) stop("X must be matrix")
   
@@ -150,23 +153,23 @@ apply.mat <- function(X, MARGIN, FUN, ...) {
 
 # m <- structure(matrix(1:12, nrow=4), dimnames=list(letters[1:4], paste0("x", 1:3)))
 # apply(m, 1, sum) # vectored
-# apply.mat(m, 1, sum) # keep matrix
+# apply_mat(m, 1, sum) # keep matrix
 # apply(m, 1, cumsum) # transposed
-# apply.mat(m, 1, cumsum) # keep layout
+# apply_mat(m, 1, cumsum) # keep layout
 #
 # m2 <- matrix(0, 1e3, 1e3)
-# > microbenchmark(apply=apply(m2, 1, sum), apply.mat = apply.mat(m2, 1, sum), rowSums=rowSums(m2))
+# > microbenchmark(apply=apply(m2, 1, sum), apply_mat = apply_mat(m2, 1, sum), rowSums=rowSums(m2))
 # Unit: milliseconds
 #       expr       min       lq     median         uq       max neval
 #      apply 56.161379 93.45846 114.844119 119.433256 126.45192   100
-#  apply.mat 24.092916 44.84445  52.180738  54.140633  84.65420   100
+#  apply_mat 24.092916 44.84445  52.180738  54.140633  84.65420   100
 #    rowSums  4.125745  7.26764   9.172035   9.301981  10.17059   100
 
 ### lookup for matrix or data.frame
 lookup <- function(values, tbl, search.col = 1) {
   stopifnot(is.data.frame(tbl) || is.matrix(tbl))
   
-  if(is.character(search.col))
+  if (is.character(search.col))
     search.col <- match(search.col, colnames(tbl))
   stopifnot(!is.na(search.col))
   
@@ -178,32 +181,32 @@ lookup <- function(values, tbl, search.col = 1) {
 }
 
 ###
-cd <- function(dir) {
-  if (missing(dir)) dir <- Sys.getenv("HOME")
-  if (!nzchar(dir)) stop("Enter valid directory path")
+cd <- function(dir_) {
+  if (missing(dir_)) dir_ <- Sys.getenv("HOME")
+  if (!nzchar(dir_)) stop("Enter valid directory path")
   on.exit(utils::setWindowTitle(getwd()))
-  setwd(dir)
+  setwd(dir_)
 }
 
 ### get current order of lapply or vapply
-current.order <- function() 0L + sys.call(-1)[[2]][[3]] # need 0L+ after R.Version 3.1
-current.name <- function() names(eval.parent(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
-# lapply(letters[3:5], function(x) current.order())
-# vapply(letters[3:5], function(x) current.order(), 0)
+current_order <- function() 0L + sys.call(-1)[[2]][[3]] # need 0L+ after R.Version 3.1
+current_name <- function() names(eval.parent(sys.call(-2)[[2]])[sys.call(-1)[[2]][[3]]])
+# lapply(letters[3:5], function(x) current_order())
+# vapply(letters[3:5], function(x) current_order(), 0)
 # lapply(list(a=1, b="b", c=33),
 #   function(x) {
-#     n <- current.name()
-#     o <- current.order()
+#     n <- current_name()
+#     o <- current_order()
 #     list(n, o)})
 
 ###
-rm.variables <- function(env = .GlobalEnv) {
+rm_variables <- function(env = .GlobalEnv) {
   rm(list = setdiff(utils::ls.str(envir = env), utils::lsf.str(envir = env)), envir= env)
 }
-rm.functions <- function(env = .GlobalEnv) {
+rm_functions <- function(env = .GlobalEnv) {
   rm(list = utils::lsf.str(all = TRUE, envir = env), envir = env)
 }
-rm.all <- function(env = .GlobalEnv) {
+rm_all <- function(env = .GlobalEnv) {
   rm(list = ls(all = TRUE, envir = env), envir = env)
 }
 
@@ -218,7 +221,7 @@ assign2 <- function(x_char, value, check_funs = c(class, length), envir = parent
     stop("lhs must be symbol or character")
   
   checker <- c(check_funs)
-  if(!all(vapply(checker, is.function, FALSE)))
+  if (!all(vapply(checker, is.function, FALSE)))
     stop("check_funs must be function")
 
   x_sym <- as.symbol(x_char)
@@ -251,13 +254,13 @@ assign2 <- function(x_char, value, check_funs = c(class, length), envir = parent
 }
 
 ## sugar
-`%<-@%` <- function(lhs, rhs){
+`%<-@%` <- function(lhs, rhs) {
   assign2(as.character(substitute(lhs)), rhs, envir = parent.frame())
 }
 
 ## assign immutable variable
-assign3 <- function(var.char, val, envir = parent.frame()){
-  if(!is.character(var.char)) stop("1st argument must be character")
+assign3 <- function(var.char, val, envir = parent.frame()) {
+  if (!is.character(var.char)) stop("1st argument must be character")
   assign(var.char, val, envir = envir)
   invisible(lockBinding(var.char, envir))
 }
@@ -344,7 +347,7 @@ assign3 <- function(var.char, val, envir = parent.frame()){
 inspect <- function(...) .Internal(inspect(...))
 
 ## address() is already used in package "pryr" and "data.table"
-address2 <- function(...){
+address2 <- function(...) {
   capture.output.cat <- function (...) {
     # simplify body(capture.output) and substitute `cat` for `print`
     rval <- NULL
@@ -389,7 +392,7 @@ address2 <- function(...){
           if (arg_expr_char[[3]] %in% sub("is.", "", ls(pattern = "^is\\.", baseenv()))) {
             arg_expr_new <- as.formals(arg_expr_char[[2]])
             arg_class <- arg_expr_char[[3]]
-          } else if (tolower(arg_expr_char[[3]]) == "any"){
+          } else if (tolower(arg_expr_char[[3]]) == "any") {
             arg_expr_new <- as.formals(arg_expr_char[[2]])
             arg_class <- NA
           } else {
@@ -427,7 +430,7 @@ address2 <- function(...){
   calls_of_is_checking <- lapply(arglist.converted, function(x) x$call_of_is_checking)
   select_not_NULL <- function(x) x[!vapply(x, is.null, logical(1))]
   
-  and_bool_expr <- (function(x){
+  and_bool_expr <- (function(x) {
     n <- length(x)
     if (n == 0) quote(TRUE)
     else if (n == 1) x[[1]]
@@ -458,7 +461,7 @@ address2 <- function(...){
 
 ## fun compares vecter elements next to each other
 compare_ <- function(fun, vals) {
-  iter <- function(vals){
+  iter <- function(vals) {
     if (length(vals) == 1) TRUE
     else if (is.na(vals[[1]])) NA
     else if (!fun(vals[[1]], vals[[2]])) FALSE
@@ -504,18 +507,18 @@ unzip_ <- function(lst, fun = `c`) {
 # zip_(1:3, 4:6, 7:9)
 # zip_(1:3, letters[1:3])
 
-# zip2 <- function(x, y, FUN = list){
-#   if(length(x) == 0 || length(y) == 0) NULL
+# zip2 <- function(x, y, FUN = list) {
+#   if (length(x) == 0 || length(y) == 0) NULL
 #   else append(list(FUN(x[[1]], y[[1]])), zip2(x[-1], y[-1], FUN = FUN))
 # }
-# zip3 <- function(x, y, z, FUN = list){
-#   if(length(x) == 0 || length(y) == 0 || length(z) == 0) NULL
+# zip3 <- function(x, y, z, FUN = list) {
+#   if (length(x) == 0 || length(y) == 0 || length(z) == 0) NULL
 #   else append(list(FUN(x[[1]], y[[1]]), z[[1]]), zip2(x[-1], y[-1], z[-1], FUN = FUN))
 # }
 # zip_ <- function(... , FUN = list) {
 #   dots <- list(...)
 #   elem.len <- min(vapply(dots, length, 0))
-#   if(elem.len == 0) NULL
+#   if (elem.len == 0) NULL
 #   else append(
 #     list(do.call(FUN, lapply(dots, `[[`, 1))),
 #     do.call(zip_, c(lapply(dots, `[`, -1), FUN = FUN)))
