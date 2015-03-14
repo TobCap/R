@@ -66,7 +66,7 @@ write_cb <- function(data, sep = "\t", header = TRUE, row.names = FALSE,
 
 # quit instead of q()
 makeActiveBinding("Q", q, env = attach(NULL, name = "q"))
-# class(Q) <- Q <- "ask"; print.ask <- q
+# class(Q) <- Q <- "ask"; print.ask <- q  
 
 `%!in%` <- Negate(`%in%`)
 `%??%` <- function(x, y) if (is.null(x)) y else x
