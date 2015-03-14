@@ -65,8 +65,7 @@ write.cb <- function(data, sep = "\t", header = TRUE, row.names = FALSE,
 }
 
 # quit instead of q()
-# environment name is along with this file name itself. 
-makeActiveBinding("Q", q, env = as.environment("startFunctions.r")) 
+makeActiveBinding("Q", q, env = attach(NULL, name = "q"))
 # class(Q) <- Q <- "ask"; print.ask <- q
 
 `%!in%` <- Negate(`%in%`)
