@@ -106,35 +106,35 @@ repmat <- function(m, nr, nc = nr) {
     do.call(rbind, rep.int(list(do.call(cbind, rep.int(list(m), nc))), nr))
 }
 
-## delayed assign list; capture other variables 
+## delayed evaluation list; be able to capture other variables 
 list2 <- function(...) {
   dots <- match.call(expand.dots = FALSE)$...
   e <- new.env(parent = parent.frame())
   for(i in seq_along(dots)) {
-    eval(bquote(delayedAssign(names(dots[.(ii)]), eval(dots[[.(ii)]], e), assign.env = e), list(ii = i)))
-  }   
-  as.list(e, all.names = TRUE)
+    eval(bquote(delayedAssign(names(dots[.(j)]), eval(dots[[.(j)]], e), assign.env = e), list(j = i)))
+  }
+  mget(names(dots), envir = e)
 }
 ## examples
 # list2(x = 1, y = x)
 # list2(x = y, y = 1) # capture a posterior variable  
-# list2(x = y + z + 1, y = 10, z = y + 3) # capture nested variables
+# list2(x = y + z + 1, y = 10, z = y + 3) # capture nested variable reference
 # list2(x = 1:5, y = x + 1, z = sum(x)) # can use function
 # z <- 100; list2(x = y + 1 , y = z + 10); rm(z) # capture an enclosure's variable
 
-## create new environment when a function is defined, which is defferent from list()
+## create new environment when a function is defined, which is different from list()
 # l2 <- list2(x = 10, y = function(k) x * k)
 # environment(l2$y); l2$y(1) # => 10
 # l <- list(x = 10, y = function(k) x * k)
 # environment(l$y); l$y(1) # => error
 
-# list2(x = z, y = 10 + x, z = y + 3) # error; circuler reference
+# list2(x = z, y = 10 + x, z = y + 3) # error; circular reference
 # list2(x = z, 1, z = 2) # error; all variables requires its name
 
-## more readable 
-# params <- list2(mat = matrix(1:12, 4, 3), nr = nrow(mat), nc = ncol(mat))
-# params <- within(list(), {mat <- matrix(1:12, 4, 3); nr <- nrow(mat); nc <- ncol(mat)})
-
+## more readable and less typing
+# params1 <- list2(mat = matrix(1:12, 4, 3), nr = nrow(mat), nc = ncol(mat))
+# params2 <- local({mat <- matrix(1:12, 4, 3); list(mat = mat, nr = nrow(mat), nc = ncol(mat))})
+# identical(params1, params2)
 
 
 ## The answer keeps as matrix.
