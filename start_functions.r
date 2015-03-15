@@ -106,23 +106,23 @@ repmat <- function(m, nr, nc = nr) {
     do.call(rbind, rep.int(list(do.call(cbind, rep.int(list(m), nc))), nr))
 }
 
-## delayed evaluation list; be able to capture other variables 
+## actual arguments can refer to other formal parameters
 list2 <- function(...) {
-  dots <- match.call(expand.dots = FALSE)$...
+  dots <- as.list(substitute((...)))[-1]
   dots_name <- names(dots)
   
   if (is.null(dots_name) || any(!nzchar(dots_name))) stop("must have all names")
   
   e <- new.env(parent = parent.frame())
   for(i in seq_along(dots)) {
-    eval(bquote(delayedAssign(dots_name[.(j)], eval(dots[[.(j)]], e), assign.env = e), list(j = i)))
+    eval(bquote(delayedAssign(dots_name[.(ii)], eval(dots[[.(ii)]], e), assign.env = e), list(ii = i)))
   }
   mget(dots_name, envir = e)
 }
 ## examples
 # list2(x = 1, y = x)
 # list2(x = y, y = 1) # capture a posterior variable  
-# list2(x = y + z + 1, y = 10, z = y + 3) # capture nested variable reference
+# list2(x = y + z + 1, y = 10, z = y + 5) # capture nested references
 # list2(x = 1:5, y = x + 1, z = sum(y)) # can use function
 # z <- 100; list2(x = y + 1 , y = z + 10); rm(z) # capture an enclosure's variable
 
