@@ -6,7 +6,7 @@ tco <- function(f_, env_ = parent.frame()) {
   marked_name <- "tail_call_opt"
   
   mark_recursive_call <- function(expr) {
-    if (length(expr) <= 1)
+    if (length(expr) <= 1 && !is.call(expr))
       expr
     else if (as.character(expr[[1]]) %in% target_char)
       call("class<-", `[[<-`(expr, 1, quote(list)), marked_name) 

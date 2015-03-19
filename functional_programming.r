@@ -699,21 +699,22 @@ promise_tracker <- function(`__sym__`, n = 1, strict = TRUE) {
 # rm(n, f1, f2, f3, f4)
 
 ### convert call to list and vice versa
-call_list_cnv <- function(f.arg) {
-  arg_is_lang <- is.call(f.arg)
+call_to_list <- function(expr) {
   cnv <- function(x) {
-    if (length(x) == 1) x
+    if (length(x) <= 1 && !is.call(x)) x
     else if (is.pairlist(x)) as.pairlist(lapply(x, cnv))
-    else if (arg_is_lang) lapply(x, cnv)
+    else lapply(x, cnv)
+  }
+  cnv(expr)
+}
+
+list_to_call <- function(lst) {
+  cnv <- function(x) {
+    if (length(x) <= 1 && !is.list(x)) x
+    else if (is.pairlist(x)) as.pairlist(lapply(x, cnv))
     else as.call(lapply(x, cnv))
   }
-  cnv(f.arg)
-}
-as.list_recursive <- function(x) {stopifnot(is.call(x)); call_list_cnv(x)}
-as.call_recursive <- function(x) {stopifnot(is.list(x)); call_list_cnv(x)}
-length_recursive <- function(x) {
-  if (!is.recursive(x)) length(x)
-  else do.call(sum, lapply(as.list(x), length_recursive))
+  cnv(lst)
 }
 
 # language replacement
@@ -734,7 +735,7 @@ replace_call <- function(expr, before, after) {
       as.pairlist(lapply(x, conv))
     }
     else if (identical(x, before)) after
-    else if (length(x) == 1 || is.null(x)) x
+    else if (length(x) <= 1 && !is.call(x)) x
     else as.call(lapply(x, conv))
   }
   conv(expr)
@@ -778,7 +779,7 @@ replace_lang <- function (expr, before, after, can_accept_undefined_var = FALSE)
       as.pairlist(lapply(x, conv))
     }
     else if (matched(x)) after
-    else if (length(x) == 1 || is.null(x)) x
+    else if (length(x) <= 1 && !is.call(x)) x
     else as.call(lapply(x, conv))
   }
   conv(expr)
