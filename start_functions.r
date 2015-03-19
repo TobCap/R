@@ -107,18 +107,19 @@ repmat <- function(m, nr, nc = nr) {
 }
 
 ## actual arguments can refer to other formal parameters
-list2 <- function(...) {
+list2 <- function(..., .pos = 1) {
   dots <- as.list(substitute((...)))[-1]
   dots_name <- names(dots)
   
-  if (is.null(dots_name) || any(!nzchar(dots_name))) stop("must have all names")
+  if (is.null(dots_name) || any(!nzchar(dots_name))) stop("dots must have all names")
   
-  e <- new.env(parent = parent.frame())
+  e <- new.env(parent = parent.frame(.pos))
   for(i in seq_along(dots)) {
     eval(bquote(delayedAssign(dots_name[.(ii)], eval(dots[[.(ii)]], e), assign.env = e), list(ii = i)))
   }
   mget(dots_name, envir = e)
 }
+
 ## examples
 # list2(x = 1, y = x)
 # list2(x = y, y = 1) # capture a posterior variable  
@@ -139,6 +140,12 @@ list2 <- function(...) {
 # params1 <- list2(mat = matrix(1:12, 4, 3), nr = nrow(mat), nc = ncol(mat))
 # params2 <- local({mat <- matrix(1:12, 4, 3); list(mat = mat, nr = nrow(mat), nc = ncol(mat))})
 # identical(params1, params2)
+
+## need to capture parent frame by .depth = 2
+# library("dplyr")
+# data_frame2 <- function(...) as_data_frame(list2(..., .pos = 2))
+# data_frame2(x = y * 2, y = 1:5) # => run
+# data_frame(x = y * 2, y = 1:5) # => error
 
 
 ## The answer keeps as matrix.
