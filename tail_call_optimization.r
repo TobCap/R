@@ -54,15 +54,16 @@ pow_rec <- function(x, n, acc = 1) {
 # > tco(pow_rec)(1+1e-5, 1e5)
 # [1] 2.718268
 
-## trampoline
-# need to convert tail calls to be wrapped by lambda (function)
-# see examples at https://gist.github.com/TobCap/6332468
 
+
+### trampoline
+## need to convert tail calls to be wrapped by lambda (function)
+## see examples at https://gist.github.com/TobCap/6332468
 trampoline <- function(..., e = parent.frame()) {
-  dots.quote <- as.list(substitute((...)))[-1]
-  dots.len <- length(dots.quote)
+  dots <- as.list(substitute((...)))[-1]
+  dots_len <- length(dots)
   
-  main.call <- function(f) {
+  main_call <- function(f) {
     while(is.function(f)) {f <- f()}
     f
   }
@@ -73,14 +74,14 @@ trampoline <- function(..., e = parent.frame()) {
     }
   }
   
-  if (dots.len == 0) {
+  if (dots_len == 0) {
     stop("need to take arguments")
-  } else if (dots.len == 1 && length(dots.quote[[1]]) == 1) {
+  } else if (dots_len == 1 && length(dots[[1]]) == 1) {
     # trampoline(even2)(100)
     curried1(..1)
-  } else if (dots.len == 1 && length(dots.quote[[1]]) > 1) {
+  } else if (dots_len == 1 && length(dots[[1]]) > 1) {
     # trampoline(even2(100))
-    main.call(..1)
+    main_call(..1)
   } else {
     # trampoline(even2, 100)
     do.call(curried1(..1), list(...)[-1], envir = e)
@@ -101,3 +102,4 @@ trampoline <- function(..., e = parent.frame()) {
 # trampoline(fibcps2(25, force))
 # trampoline(fibcps2, 25, force)
 # trampoline(fibcps2)(25, force)
+
