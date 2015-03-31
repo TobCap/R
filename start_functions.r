@@ -141,7 +141,7 @@ list2 <- function(..., .pos = 1) {
 # params2 <- local({mat <- matrix(1:12, 4, 3); list(mat = mat, nr = nrow(mat), nc = ncol(mat))})
 # identical(params1, params2)
 
-## need to capture parent frame by .depth = 2
+## need to capture parent frame by .pos = 2
 # library("dplyr")
 # data_frame2 <- function(...) as_data_frame(list2(..., .pos = 2))
 # data_frame2(x = y * 2, y = 1:5) # => run
