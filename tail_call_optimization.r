@@ -1,4 +1,10 @@
-# see https://gist.github.com/TobCap/6482462
+## only a primitive recursive function can accept as an argumnet.
+## so Ackerman function cannot be applied.
+## http://en.wikipedia.org/wiki/Primitive_recursive_function
+
+## fibonacci examples
+## https://gist.github.com/TobCap/e5ab9e0c74b34346328d
+
 tco <- function(f_, env_ = parent.frame()) {
   stopifnot(typeof(f_) == "closure")
   
@@ -9,7 +15,7 @@ tco <- function(f_, env_ = parent.frame()) {
     if (length(expr) <= 1 && !is.call(expr))
       expr
     else if (as.character(expr[[1]]) %in% target_char)
-      call("class<-", `[[<-`(expr, 1, quote(list)), marked_name) 
+      call("class<-",  as.call(c(quote(list), lapply(expr[-1], mark_recursive_call))), marked_name)
     else if (is.pairlist(expr))
       as.pairlist(lapply(expr, mark_recursive_call))
     else 
