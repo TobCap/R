@@ -1,33 +1,36 @@
 ### infinite sequence
 ### TODO: going to rewrite them in C or Rccp.
 
-## Reference of existing R codes
-# http://d.hatena.ne.jp/syou6162/20080831/1220126789
-# http://d.hatena.ne.jp/tar0_t/20110608/1307531065
-# https://sites.google.com/site/diaspar2011/functional/infinite-list
-
 ## The idea and funcition names are mainly from Scheme (Gauche) and Haskell.
-# http://practical-scheme.net/gauche/man/gauche-refj_57.html
+# http://srfi.schemers.org/srfi-41/srfi-41.html
+# http://srfi.schemers.org/srfi-45/srfi-45.html
+# http://practical-scheme.net/gauche/man/gauche-refe_59.html#Lazy-evaluation
+# http://practical-scheme.net/gauche/man/gauche-refe_88.html
 # http://hackage.haskell.org/package/base-4.7.0.0/docs/Prelude.html
 # http://hackage.haskell.org/package/base-4.7.0.0/docs/Data-List.html
 
-# This can append any type of object, different from Haskell's List
+## Reference of existing R codes
+# http://d.hatena.ne.jp/syou6162/20080831/1220126789
+# http://d.hatena.ne.jp/tar0_t/20110608/1307531065
+
 
 ## basic functions
 ## To simulate WHNF, both `head` and `tail` are wrapped by closure
 `%:%` <- lcons <- function(x, y) `class<-`(pairlist(head = function() x, tail = function() y), "LList")
-##`%:%` <- lcons <- function(x, y) pairlist(head = x, tail = function() y)
+##`%:%` <- lcons <- function(x, y) `class<-`(pairlist(head = x, tail = function() y), "LList")
+# `lcons` can append any type of object, different from Haskell's List
+
 
 # R's infix operator has left-associativity
-# 1 %:% 2 %:% 3 %:% NULL # can be parsed but not good
+# 1 %:% 2 %:% 3 %:% NULL # can be parsed but not meaningful to interpret
 # 1 %:% (2 %:% (3 %:% NULL)) # Good
 
 # ones <- 1L %:% ones # Good
 
-lnull <- is.null # function(x) is.null(x)
-lempty <- NULL
-lhead <- function(x) if (lnull(x)) stop("empty list") else x$head()
-ltail <- function(x) if (lnull(x)) stop("empty list") else x$tail()
+lempty <- `class<-`(quote(empty), "LList")
+lnull <- function(x) identical(x, lempty)
+lhead <- lcar <- function(x) if (lnull(x)) stop("empty list") else x$head()
+ltail <- lcdr <- function(x) if (lnull(x)) stop("empty list") else x$tail()
 
 linit <- function(x) {
   if (lnull(x)) stop("empty list") 
@@ -41,7 +44,7 @@ llast <- function(x) {
 }
 
 `%++%` <- function(lhs, rhs){
-  if (is.null(lhs)) rhs
+  if (lnull(lhs)) rhs
   else lhead(lhs) %:% (ltail(lhs) %++% rhs)
 }
 
@@ -60,11 +63,6 @@ llast <- function(x) {
   out.fun(as.integer(x), if (is.finite(y)) as.integer(y) else y)
 }
 
-
-# llength <- function(x) {
-#   if (lnull(x)) 0
-#   else 1 + llength(ltail(x))
-# }
 llength <- function(x, acc = 0) {
   if (lnull(x)) acc
   else llength(ltail(x), acc + 1)
@@ -76,7 +74,7 @@ llength <- function(x, acc = 0) {
 
 # make a finite lazy object from R's object
 llist <- function(...) {
-  if (lnull(pairlist(...))) lempty
+  if (is.null(pairlist(...))) lempty
   else ..1 %:% do.call(llist, list(...)[-1])
 }
 
@@ -90,17 +88,9 @@ llist <- function(...) {
 as.llist <- function(r.vec) {
   do.call(llist, as.list(r.vec))
 }
-# llist(1L,2L,3L) can be expressed by as.llist(1:3)
+# llist(1L,2L,3L) can be expressed by 'as.llist(1:3)'
 
-is.llist <- function(x) class(x) == "LList" || class(x) == "NULL"
-# is.llist <- function(x, check.depth = 10) {
-#   out.fun <- function(x, n) {
-#     if (n == 0 || lnull(x)) TRUE
-#     else length(x) == 2 && typeof(x) == "pairlist" && 
-#       names(x) == c("head", "tail") && out.fun(ltail(x), n - 1)
-#   }
-#   out.fun(x, check.depth)
-# }
+is.llist <- function(x) class(x) == "LList"
 
 ## llist.uneval can handle _|_ (infinite element)
 # x <- llist.uneval(1, 2, 3, while(TRUE){}, 5)
@@ -192,7 +182,7 @@ ltakeWhile <- function(FUN, x) {
 }
 
 ldropWhile <- function(FUN, x) {
-  if (lnull(x) || !FUN(hd <- lhead(x))) x
+  if (lnull(x) || !FUN(lhead(x)) x
   else ldropWhile(FUN, ltail(x))
 }
 
@@ -268,7 +258,7 @@ lreverse <- function(x, acc = lempty) {
 # lpermutations
 
 ltranspose <- function(l) {
-  if (!is.llist(l)) stop("argument must be LList")
+  if (!is.llist(l)) stop("argument must be LList class")
   
   if (lnull(l)) lempty
   else if (lnull(hd <- lhead(l))) ltranspose(ltail(l))
@@ -495,6 +485,6 @@ lprimes3 <- 2 %:% sieve(liota(start = 3, step = 2))
 # list(2017, 2027, 2029, 2039, 2053, 2063, 2069, 2081, 2083, 2087, 
 #     2089, 2099)
 
-## `%|%` and f.() defined in https://github.com/TobCap/R/blob/master/functionalProgramming.r
+## `%|%` and f.(), defined in https://github.com/TobCap/R/blob/master/functional_programming.r,
 ## have great readability and usability.
 ## lprimes3 %|% ldropWhile(f.(x, x < 2013), ..) %|% ltakeWhile(f.(x, x < 2100), ..)
