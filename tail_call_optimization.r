@@ -30,9 +30,11 @@ tco <- function(f_, env_ = parent.frame()) {
       f_ <- .(f_)
       
       # initial value
-      ans <- `class<-`(mget(.(names(f_args))), .(marked_name))
+      # ans <- `class<-`(mget(.(names(f_args))), .(marked_name))
+      ans <- `class<-`(lapply(.(names(f_args)), get, envir = environment()), .(marked_name))
       while(inherits(ans, "tail_call_opt")) {
-        ans <- do.call(f_, ans)
+        # FIX-ME: need 'quote = TRUE' ?
+        ans <- do.call(f_, ans, quote = TRUE)
       }
       ans
     })
