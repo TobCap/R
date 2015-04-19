@@ -5,7 +5,8 @@
 ## fibonacci examples
 ## https://gist.github.com/TobCap/e5ab9e0c74b34346328d
 
-tco <- function(f_, env_ = parent.frame()) {
+## tail-recursion-elimination
+tre <- function(f_, env_ = parent.frame()) {
   stopifnot(typeof(f_) == "closure")
   
   target_char <- as.character(c(substitute(f_), quote(Recall)))
@@ -30,7 +31,6 @@ tco <- function(f_, env_ = parent.frame()) {
       f_ <- .(f_)
       
       # initial value
-      # ans <- `class<-`(mget(.(names(f_args))), .(marked_name))
       ans <- `class<-`(lapply(.(names(f_args)), get, envir = environment()), .(marked_name))
       while(inherits(ans, "tail_call_opt")) {
         # FIX-ME: need 'quote = TRUE' ?
@@ -50,7 +50,7 @@ sum_rec <- function(n, acc = 0) {
 # [1] 55
 # > sum_rec(1e5)
 # Error: protect(): protection stack overflow
-# > tco(sum_rec)(1e5)
+# > tre(sum_rec)(1e5)
 # [1] 5000050000
 
 pow_rec <- function(x, n, acc = 1) {
@@ -59,7 +59,7 @@ pow_rec <- function(x, n, acc = 1) {
 }
 # > pow_rec(1+1e-5, 1e5)
 # Error: protect(): protection stack overflow
-# > tco(pow_rec)(1+1e-5, 1e5)
+# > tre(pow_rec)(1+1e-5, 1e5)
 # [1] 2.718268
 
 
