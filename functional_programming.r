@@ -5,10 +5,20 @@ as.formals <- function(x, value = list(quote(expr=))) {
   ## a faster version of tools:::as.alist.call
   if (!all(nzchar(x)))
     stop('Including "" or substitute() is invalid input.')
+
   if (length(x) == 0)
     return(NULL)
-  if (is.null(names(x)))
-    return(`names<-`(as.pairlist(rep_len(value, length(x))), as.character(x)))
+
+  if (is.null(names(x))) {
+    # backquote is added when as.character(list(symbol))
+    # https://github.com/wch/r-source/blob/c49da80f91d6dd6c20b5fd714e7cceaaecbd8d39/src/main/coerce.c#L1049-L1062
+    # as.character(quote(`_`))
+    # as.character(list(quote(`_`)))
+    new_names <-
+      if (length(x) == 1 && !is.recursive(x)) as.character(x)
+      else vapply(x, as.character, "")
+    return(`names<-`(as.pairlist(rep_len(value, length(x))), new_names))
+  }
 
   ans <- as.list(x)
   idx <- which(!nzchar(names(ans)))
@@ -16,6 +26,7 @@ as.formals <- function(x, value = list(quote(expr=))) {
   ans[idx] <- rep_len(value, length(idx))
   as.pairlist(ans)
 }
+
 is.formals <- function(x) {
   is.pairlist(x) && length(x) == sum(nzchar(names(x)))
 }
