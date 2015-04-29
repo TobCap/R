@@ -12,10 +12,10 @@ local({
   options(max.print = 2e2)
   options(error = quote(utils:::dump.frames()))
   
-  options(
-    warnPartialMatchAttr = TRUE,
-    warnPartialMatchDollar = TRUE,
-    warnPartialMatchArgs = TRUE)
+  # options(
+    # warnPartialMatchAttr = TRUE,
+    # warnPartialMatchDollar = TRUE,
+    # warnPartialMatchArgs = TRUE)
   
   utils:::rc.settings(ipck = TRUE)
 
@@ -74,19 +74,7 @@ local({
       ,n = FALSE
       ,{cat(cancel_msg, "\n"); FALSE}
     )
-  }
-
-  dummy <- readline("press Enter Key ") # for RStudio
-  
-  download_github <- inquire(
-    ask = "  download files from your github? (y/n) ",
-    cancel_msg = "quit downloading from github"
-  )
-  
-  load_default_packages <- inquire(
-    ask = "  read your default packages? (y/n) ",
-    cancel_msg = "canceled"
-  )
+  }  
   
   isWindows <- .Platform$OS.type == "windows"
   if (isWindows) utils:::setInternet2(TRUE)
@@ -112,24 +100,36 @@ local({
     local_path <- get_file_github(git_url)
     sys.source(local_path, envir = attach(NULL, name = basename(local_path)))
   }
-   
-  if (download_github){
-    for (x in git_files) {
-      attach_file(x)
-    }
-  }
   
-  if (load_default_packages) {
-    # load.packages() is defined in above "start_functions.r"
-    if (exists("load.packages")) load.packages(startup_packages)
-    else {
-      for (x in startup_packages){
-        suppressPackageStartupMessages(library(x, character.only = TRUE, quietly = TRUE))
-        cat("###", "package", x, "is loaded\n")
-        utils:::flush.console()
-      }
-    }
-  }
+  #  dummy <- readline("press Enter Key ") # for RStudio
+
+  # download_github <- inquire(
+    # ask = "  download files from your github? (y/n) ",
+    # cancel_msg = "quit downloading from github"
+  # )
+  
+  # load_default_packages <- inquire(
+    # ask = "  read your default packages? (y/n) ",
+    # cancel_msg = "canceled"
+  # )
+    
+  # if (isTRUE(download_github)) {
+    # for (x in git_files) {
+      # attach_file(x)
+    # }
+  # }
+  
+  # if (isTRUE(load_default_packages)) {
+    # # load.packages() is defined in above "start_functions.r"
+    # if (exists("load.packages")) load.packages(startup_packages)
+    # else {
+      # for (x in startup_packages){
+        # suppressPackageStartupMessages(library(x, character.only = TRUE, quietly = TRUE))
+        # cat("###", "package", x, "is loaded\n")
+        # utils:::flush.console()
+      # }
+    # }
+  # }
     
   # load.packages("Rbbg", repos = "http://r.findata.org")
   # load.packages("FinancialInstrument", repos="http://R-Forge.R-project.org")
