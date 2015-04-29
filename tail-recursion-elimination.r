@@ -1,12 +1,16 @@
-## only a primitive recursive function can accept as an argumnet.
-## so Ackerman function cannot be applied.
-## http://en.wikipedia.org/wiki/Primitive_recursive_function
+## "Tail call" http://en.wikipedia.org/wiki/Tail_call
+## tail-call-optimization is broader concept than tail-recursion-elimination.
 
 ## fibonacci examples
 ## https://gist.github.com/TobCap/e5ab9e0c74b34346328d
 
-## tail-recursion-elimination
-tre <- function(f_, env_ = parent.frame()) {
+## only a primitive recursive function can accept as an argumnet.
+## so Ackerman function cannot be applied.
+## http://en.wikipedia.org/wiki/Primitive_recursive_function
+
+
+## In do.call() version, the function passed to don't need to specify return() call in exit condition.
+tre <- function(f_) {
   stopifnot(typeof(f_) == "closure")
   
   target_char <- as.character(c(substitute(f_), quote(Recall)))
@@ -111,3 +115,133 @@ trampoline <- function(..., e = parent.frame()) {
 # trampoline(fibcps2, 25, force)
 # trampoline(fibcps2)(25, force)
 
+## You need to specify return() call in exit condition for loop version.
+tail_recursive_elimination <- function(f_) {
+  if (!typeof(f_) == "closure")
+    stop("only closure is acceptable")
+  if (!any(all.names(body(f_)) == "return"))
+    stop("return() must be included inside body of f_()")
+      
+  target_char <- as.character(c(substitute(f_), quote(Recall)))
+  f_args <- formals(args(f_))
+  f_args_len <- length(f_args)
+  f_args_name <- names(f_args)
+  f_args_sym_named <- setNames(lapply(f_args_name, as.symbol), f_args_name)
+  
+  gensyms(0) # initalize for debugging
+  
+  make_simple_loop <- function(actuals) {
+    new_syms <- gensyms(f_args_len)    
+    new_call <- mapply(
+      function(actual, formal_sym, new_sym) {
+        list(
+          call("<-", new_sym, formal_sym),
+          call("<-", formal_sym, substituteDirect(actual, setNames(new_syms, f_args_name)))
+        )
+      }
+      , actuals, f_args_sym_named, new_syms
+      , SIMPLIFY = FALSE, USE.NAMES = FALSE)
+    
+    odd <- seq.int(length.out = f_args_len, by = 2)
+    even <- odd + 1
+    as.call(c(quote(`{`), unlist(new_call)[c(odd, even)]))
+  }
+
+  make_cps_loop <- function(actuals) {
+    dotted_call <- lapply(f_args_sym_named, function(x) call(".", x))
+    lst1 <- as.call(c(quote(list), f_args_sym_named))
+    cal1 <- mapply(
+      function(actual, formal_sym) {
+        call("<-", formal_sym, substituteDirect(actual, dotted_call))
+      }, actuals, f_args_sym_named, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+    
+    call("{", call("eval", call("bquote", as.call(c(quote(`{`), cal1)), lst1))
+    )
+  }
+  
+  iter <- function(x, translate) {
+    iter2 <- function(x) {
+      if (length(x) <= 1 && !is.list(x)) x
+      else if (length(x) > 1 && any(x[[1]] == target_char)) translate(as.list(x)[-1])
+      else if (is.pairlist(x)) as.pairlist(lapply(x, iter2))
+      else as.call(lapply(x, iter2))
+    }
+    iter2(x)
+  }
+  
+  loop_inner <- list(
+    loop_simple = iter(body(f_), make_simple_loop), 
+    loop_macro = iter(body(f_), make_cps_loop))
+  
+  f_loop_body <- bquote({
+    has_func <- any(unlist(eapply(environment(), is.function, all.names = TRUE, USE.NAMES = FALSE)))
+    if (has_func) repeat .(loop_macro)
+    else repeat .(loop_simple)
+  }, loop_inner)
+  eval(call("function", f_args, f_loop_body), envir = environment(f_))
+}
+
+gensyms <- (function() {
+  base_name <- "#:G"
+  num <- 0
+  
+  function(n, allow_overlapping = FALSE){
+    if (missing(n) || n < 0) 
+      stop("n must be greater than one")
+      
+    if (n == 0) {
+      num <<- 0
+      return(invisible())
+    }
+
+    current_num <- num
+    if (!allow_overlapping) num <<- num + n
+    
+    lapply(paste0(base_name, seq_len(n) + current_num), as.symbol)
+  }
+})()
+
+sum_rec_ret <- function(n, acc = 0) {
+  if (n == 0) return(acc)
+  else sum_rec(n - 1, acc + n)
+}
+ 
+## error
+# > sum_rec_ret(1e5)
+# Error: evaluation nested too deeply: infinite recursion / options(expressions=)?
+ 
+## run
+# > s1 <- tail_recursive_elimination(sum_rec_ret)
+# > s1(1e5)
+# [1] 5000050000 
+ 
+sum_cps <- function(n, k) {
+  if (n == 0) return(k(0))
+  else sum_cps(n - 1, function(x) k(n + x))
+}
+ 
+# > s2 <- tail_recursive_elimination(sum_cps)
+# > s2(1e3, identity)
+# [1] 500500
+ 
+## check what has happened
+# sum_cps2 <- function(n, k) {
+#   if (n == 0) {dput(k);return(k(0))}
+#   else sum_cps2(n - 1, function(x) k(n + x))
+# }
+# tail_recursive_elimination(sum_cps2)(10, identity)
+ 
+# function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# (function (x) 
+# x)(10 + x))(9 + x))(8 + x))(7 + x))(6 + x))(5 + x))(4 + x))(3 + 
+#     x))(2 + x))(1 + x)
+# [1] 55
