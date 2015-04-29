@@ -203,7 +203,7 @@ gensyms <- (function() {
 
 sum_rec_ret <- function(n, acc = 0) {
   if (n == 0) return(acc)
-  else sum_rec(n - 1, acc + n)
+  else sum_rec_ret(n - 1, acc + n)
 }
  
 ## error
