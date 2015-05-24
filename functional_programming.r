@@ -5,24 +5,45 @@
 ## I use ".."; "." is sometimes used within a model formula expression or other packages as a meaningful symbol.
 ## It is not fast but easy to read and understand because of using fewer parentheses.
 `%|%` <- (function() {
-  two_dots_arg <- as.pairlist(alist(..=))
-
-  function(lhs, rhs, env_ = parent.frame()) {
+  replace_two_dots <- function(rhs, lhs_replaced) {
+    iter <- function(x) {
+      if (length(x) <= 1 && !is.recursive(x)) {
+        if (is.symbol(x) && x == "..") { lhs_replaced }
+        else { x } }
+      else if (x[[1]] == "%|%") { call("%|%", iter(x[[2]]), x[[3]]) }
+      else if (is.pairlist(x)) { as.pairlist(lapply(x, iter)) }
+      else { as.call(lapply(x, iter)) }
+    }
+    iter(rhs)
+  }
+  
+  function(lhs, rhs, pf_ = parent.frame()) {
     rhs_expr <- substitute(rhs)
+    
+    ## short-cut
     if (length(rhs_expr) == 1 && is.symbol(rhs_expr)) {
-      # shortcut purpose for speedup
-      rhs(lhs) }
-    else if (rhs_expr[[1]] == "{") {
-      # eager eval
-      ans <- eval(rhs_expr, envir = list(.. = lhs), enclos = env_)
-      if (is.function(ans)) ans(lhs)
-      else ans }
-    else if (any(all.names(rhs_expr) == "..")) {
-      # lazy eval .. with lambda
-      rhs_closure <- eval(call("function", two_dots_arg, rhs_expr), env_)
-      rhs_closure(lhs) }
-    else {
-      rhs(lhs) }
+      return(rhs(lhs))
+    }
+    
+    all_syms <- all.names(rhs_expr)
+    has_nest_pipe <- any(all_syms == "%|%")
+    has_dots <- any(all_syms == "..")
+    
+    if (!has_dots) {
+      rhs(lhs)
+    } else if (has_nest_pipe) {
+      rhs_expr_mod <- replace_two_dots(rhs_expr, substitute(lhs))
+      eval(rhs_expr_mod, envir = pf_)
+    } else {
+      rhs_expr_mod <- substituteDirect(rhs_expr, list(.. = substitute(lhs)), FALSE)
+      eval(rhs_expr_mod, envir = pf_)
+      
+      # eval(rhs_expr, envir = list(.. = substitute(lhs)), enclos = pf_)
+      # The above commented code does not evaluate appropriate environment when 
+      # a function of rhs_expr uses parent.frame() as its default argument value.
+      #
+      # 1:5 %|% assign(x = "test_var", value = ..)
+    }
   }
 })()
 
@@ -50,66 +71,67 @@
 #   replicate(n=1000, ..()) %|%
 #   matplot(.., type = "l", ann = FALSE)
 
-### switch eager or lazy
-# my_sum <- function(...) {print("my_sum is called"); sum(...)}
-# my_log <- function(...) {print("my_log is called"); log(...)}
-#
-# {print("1:5 is called"); 1:5} %|% my_sum
-# {print("1:5 is called"); 1:5} %|% {my_sum}
-#
-# {print("1:5 is called"); 1:5} %|% my_sum(..)
-# {print("1:5 is called"); 1:5} %|% {my_sum(..)}
-#
-# {print("1:5 is called"); c(NA, 1:5)} %|% my_sum(.., na.rm = TRUE)
-# {print("1:5 is called"); c(NA, 1:5)} %|% {my_sum(.., na.rm = TRUE)}
-#
-# {print("1:5 is called"); 1:5} %|% my_sum %|% my_log
-# {print("1:5 is called"); 1:5} %|% {my_sum} %|% my_log
-# {print("1:5 is called"); 1:5} %|% my_sum %|% {my_log}
-# {print("1:5 is called"); 1:5} %|% {my_sum} %|% {my_log}
-
+## Benchmarking
 # library(magrittr)
+# library(pipeR)
 # library(microbenchmark)
 
-# > microbenchmark("%|%" = 1 %|% sum, "%>%" = 1 %>% sum)
-# Unit: microseconds
-# expr     min      lq      mean  median       uq     max neval
-# %|%   8.024   8.916  15.83488  12.928  14.2655 263.011   100
-# %>% 257.661 263.011 297.08162 268.137 301.7935 789.922   100
+# a <- 1
+# > microbenchmark(sum(a), a %|% sum, a %|% sum(..), a %>% sum, a %>>% sum)
+# Unit: nanoseconds
+#           expr    min       lq      mean   median       uq     max neval
+#         sum(a)    446    892.0   1520.89   1338.0   1784.0   17386   100
+#      a %|% sum  11591  12929.0  15790.48  14712.0  16494.5   34772   100
+#  a %|% sum(..)  29868  33435.0  57997.16  38784.0  46585.5 1230363   100
+#      a %>% sum 178314 187676.0 233867.58 203723.5 259892.0  473869   100
+#     a %>>% sum  25856  29199.5  36786.80  32989.0  37892.5   95844   100
 
 # > microbenchmark(
-#     "%|%" = 1 %|% sum(.., rm.na = TRUE),
-#     "%>%" = 1 %>% sum(rm.na = TRUE))
-## Unit: microseconds
-## expr     min      lq      mean   median       uq      max neval
-## %|%  24.518  27.639  39.22936  35.8855  38.1155  183.662   100
-## %>% 382.033 396.299 468.14073 420.5940 462.9430 1113.558   100
+#   "%|%" = 1 %|% sum(.., rm.na = TRUE),
+#   "%>%" = 1 %>% sum(rm.na = TRUE),
+#   "%>>%"= 1 %>>% sum(rm.na = TRUE))
+# Unit: microseconds
+#  expr     min       lq      mean  median       uq      max neval
+#   %|%  29.422  32.3195  44.48998  39.676  43.6875  191.241   100
+#   %>% 256.772 265.9105 324.78078 280.399 334.3385 1078.796   100
+#  %>>%  39.676  44.5790  64.02426  52.158  58.3985  582.640   100
+
 
 # microbenchmark(
-# "%>%" =
-#   airquality %>%
-#     transform(Date = paste(1973, Month, Day, sep = "-") %>% as.Date) %>%
-#     aggregate(. ~ Date %>% format("%W"), ., mean) %>%
-#     subset(Wind > 12, c(Ozone, Solar.R, Wind))
-# ,
-# "%|%" =
-#   airquality %|%
+#   "%|%" =
+#     airquality %|%
 #     transform(.., Date = paste(1973, Month, Day, sep = "-") %|% as.Date) %|%
 #     aggregate(. ~ Date %|% format(.., "%W"), .., mean) %|%
 #     subset(.., Wind > 12, c(Ozone, Solar.R, Wind))
+#   ,
+#   "%>%" =
+#     airquality %>%
+#     transform(Date = paste(1973, Month, Day, sep = "-") %>% as.Date) %>%
+#     aggregate(. ~ Date %>% format("%W"), ., mean) %>%
+#     subset(Wind > 12, c(Ozone, Solar.R, Wind))
 # )
-## Unit: milliseconds
-## expr      min       lq     mean   median       uq      max neval
-## %>% 25.89355 27.31938 31.88473 28.17238 34.17859 90.42461   100
-## %|% 24.65473 25.79749 30.46729 28.68302 32.91770 69.69452   100
+# Unit: milliseconds
+#  expr      min       lq     mean   median       uq      max neval
+#   %|% 23.92341 35.60762 37.86391 36.87141 41.19685 56.69919   100
+#   %>% 17.24023 23.82489 25.76603 24.93935 28.00768 36.33135   100
 
-##                    %|%                 %>%
+# pipeR does not work. How should I modify this code?
+# list(
+#   "%>>%" =
+#     airquality %>>%
+#     transform(Date = paste(1973, Month, Day, sep = "-") %>>% as.Date) %>>%
+#     aggregate(. ~ Date %>>% format("%W"), ., mean) %>>%
+#     subset(Wind > 12, c(Ozone, Solar.R, Wind))
+# )
+
+##                    %|%                 %>%, %>>%
 ## placeholder symbol ..                  .
 ## syntax             cannot omit arg     UFCS-like
-## evaluation         lazy or {eager}     eager
+## evaluation         lazy                eager
 ## addOne             (..+1)              `+`(1) or add(1) or {.+1}
 
 ## The old version was simpler but a left side is evaluated before passing it into a right side function
+## and does not support nested `%|%`
 # "%|%" <- function(lhs, rhs) {
 #   ans <- eval(substitute(rhs), envir = list(.. = lhs), enclos = parent.frame())
 #   if (is.function(ans)) ans(lhs)
@@ -454,6 +476,7 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
+# devtools::install_github("tobcal/lambdass") 
 `λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # cat("\u03BB\n")
