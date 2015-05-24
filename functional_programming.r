@@ -1,67 +1,5 @@
 ### functional operators and useful functions
 
-## Auxiliary function
-as.formals <- function(x, value = list(quote(expr=))) {
-  ## a faster version of tools:::as.alist.call
-  if (!all(nzchar(x)))
-    stop('Including "" or substitute() is invalid input.')
-
-  if (length(x) == 0)
-    return(NULL)
-
-  if (is.null(names(x))) {
-    # backquote is added when as.character(list(symbol))
-    # https://github.com/wch/r-source/blob/c49da80f91d6dd6c20b5fd714e7cceaaecbd8d39/src/main/coerce.c#L1049-L1062
-    # as.character(quote(`_`))
-    # as.character(list(quote(`_`)))
-    new_names <-
-      if (length(x) == 1 && !is.recursive(x)) as.character(x)
-      else vapply(x, as.character, "")
-    return(`names<-`(as.pairlist(rep_len(value, length(x))), new_names))
-  }
-
-  ans <- as.list(x)
-  idx <- which(!nzchar(names(ans)))
-  names(ans)[idx] <- vapply(ans[idx], as.character, "")
-  ans[idx] <- rep_len(value, length(idx))
-  as.pairlist(ans)
-}
-
-is.formals <- function(x) {
-  is.pairlist(x) && length(x) == sum(nzchar(names(x)))
-}
-
-### sugar-syntax for lambda
-### adopt `f.` instead of `f` because `f` often causes conflicts in many sample codes.
-f. <- function(..., env_ = parent.frame()) {
-  # see https://gist.github.com/TobCap/6366396 for how to handle unevaluated `...`
-  d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
-  # need to be pairlist to return NULL when nothing is passed to `...`.
-
-  n <- length(d)
-  eval(call("function", as.formals(d[-n]), d[[n]]), env_)
-}
-
-# See https://gist.github.com/TobCap/6255804 for comparison of cost of creating funciton.
-# See also https://github.com/hadley/pryr/blob/master/benchmark/make-function.r
-
-# f.(x, x * 2)
-# f.(x, y, x + y)
-# f.(x, x * 2)(3)
-# f.(x, y, x + y)(1, 2)
-# f.(x, f.(y, x + y))(1)(2)
-
-### saves to type anonymous function
-# > Reduce(function(x, y) x + y, 1:10)
-# [1] 55
-# > Reduce(f.(x, y, x + y), 1:10)
-# [1] 55
-
-# > f.(y, f.(z, y+z))(1)(2)
-# [1] 3
-# > f.(y=1, f.(z=2, y+z))()()
-# [1] 3
-
 ### Pipeline like operator
 ## Left value can be passed by ".." just like scala's underscore "_".
 ## I use ".."; "." is sometimes used within a model formula expression or other packages as a meaningful symbol.
@@ -92,10 +30,6 @@ f. <- function(..., env_ = parent.frame()) {
 # > 1:5 %|% (..-1) %|% (..^2)
 # [1]  0  1  4  9 16
 # > 1:5 %|% {..-1} %|% {..^2}
-# [1]  0  1  4  9 16
-
-## f.() is defined at line 25 in this file.
-# > 1:5 %|% f.(x, x-1) %|% f.(x, x^2)
 # [1]  0  1  4  9 16
 
 ### base function v.s. `%|%`
@@ -211,8 +145,6 @@ compose_ <- function(f, g) function(x) f(g(x)) # rename
 `-->` <- function(...) {
   Reduce("%|>%", list(...), right = FALSE)
 }
-# > `-->`(1:5, f.(x, x-1), f.(x, x*10))
-# [1]  0 10 20 30 40
 
 ## composing one more functions
 `<<--` <- function(...) {
@@ -224,8 +156,6 @@ compose_ <- function(f, g) function(x) f(g(x)) # rename
     function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
 }
 
-# > `-->>`(f.(x, x-1), f.(x, x*10))(1:5)
-# [1]  0 10 20 30 40
 
 ### invokes interceptor; the idea comes from underscore javascript.
 ### it easy to debug.
