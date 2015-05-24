@@ -233,10 +233,6 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
   make_special_body <- function() {
     # `f_sym`, `f_args`, `env_` are parent environment's variable
     bquote({
-      sub2 <- function(expr, env_target) {
-        stopifnot(is.language(expr))
-        eval(substitute(substitute(e, env = env_target), list(e = expr)))
-      }
       
       f_sym <- .(f_sym)
       f_args_rev <- lapply(rev(names(.(f_args))), function(x) as.symbol(x))
@@ -248,8 +244,8 @@ curry <- function(f, env_ = parent.frame(), as_special = FALSE) {
         f_args_head <- f_args_rev[[1]]
         
         arg_ <-
-          if (f_args_head == "...")  as.list(sub2(call("list", f_args_head), e))[-1]
-          else sub2(f_args_head, e)
+          if (f_args_head == "...")  as.list(methods::substituteDirect(call("list", f_args_head), e))[-1]
+          else methods::substituteDirect(f_args_head, e)
           
         if (is.null(arg_)) arg_ <- list(NULL) # if default value is NULL
         args_ <- append(arg_, args_)
