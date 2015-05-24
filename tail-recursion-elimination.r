@@ -115,7 +115,7 @@ trampoline <- function(..., e = parent.frame()) {
 # trampoline(fibcps2, 25, force)
 # trampoline(fibcps2)(25, force)
 
-## You need to specify return() call in exit condition for loop version.
+## You need to specify `return()` in tail call of if-condition for loop version.
 tail_recursive_elimination <- function(f_) {
   if (!typeof(f_) == "closure")
     stop("only closure is acceptable")
@@ -143,7 +143,7 @@ tail_recursive_elimination <- function(f_) {
       , SIMPLIFY = FALSE, USE.NAMES = FALSE)
     
     odd <- seq.int(length.out = f_args_len, by = 2)
-    even <- odd + 1
+    even <- odd + 1L
     as.call(c(quote(`{`), unlist(new_call)[c(odd, even)]))
   }
 
