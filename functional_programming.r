@@ -840,51 +840,6 @@ nest_fun2 <- function(f, n) {
 # 6th call with argument: 1.625
 # [1] 1.615385
 
-### http://en.wikipedia.org/wiki/Church_encoding
-### http://taiju.hatenablog.com/entry/20120529/1338299884
-# zero <- l.(f, x, x)                    # f.(f, f.(x, x))
-# one  <- l.(f, x, f(x))                 # f.(f, f.(x, f(x)))
-# two  <- l.(f, x, f(f(x)))              # f.(f, f.(x, f(f(x))))
-# num  <- l.(n, f, x, nest_fun(f, n)(x)) # f.(n, f.(f, f.(x, nest_fun(f, n)(x))))
-#
-# plus <- l.(m, n, f, x, m(f)(n(f)(x)))  # f.(m, f.(n, f.(f, f.(x, m(f)(n(f)(x))))))
-# succ <- l.(n, f, x, f(n(f)(x)))        # f.(n, f.(f, f.(x, f(n(f)(x)))))
-# mult <- l.(m, n, f, m(n(f)))           # f.(m, f.(n, f.(f, m(n(f)))))
-# exp  <- l.(m, n, n(m))                 # f.(m, f.(n, n(m)))
-# to_int <- l.(n, n(l.(n, n + 1))(0))     # f.(n, n(f.(n, n + 1))(0))
-#
-# to_int(plus(zero)(one))
-# to_int(plus(one)(two))
-# to_int(succ(one))
-# to_int(num(99))
-# to_int(plus(num(7))(num(8)))
-# to_int(mult(num(3))(num(5)))
-# num(3) %|>% mult %<|% num(5) %|% to_int
-
-# true <- f.(a, f.(b, a))
-# false <- f.(a, f.(b, b))
-# and <- f.(m, f.(n, m(n)(m)))
-# or <- f.(m, f.(n, m(m)(n)))
-# not1 <- f.(m, f.(a, f.(b, m(b)(a)))) ## this does not work in R
-# not2 <- f.(m, m(f.(a, f.(b, b)))(f.(a, f.(b, a)))) # ok
-# if_ <- f.(m, f.(a, f.(b, m(a)(b))))
-
-# identical(and(true)(true), true)
-# identical(and(true)(false), false)
-# identical(and(false)(true), false)
-# identical(and(false)(false), false)
-#
-# identical(or(true)(true), true)
-# identical(or(true)(false), true)
-# identical(or(false)(true), true)
-# identical(or(false)(false), false)
-#
-# identical(not2(false), true, ignore_environment = TRUE)
-# identical(not2(true), false, ignore_environment = TRUE)
-#
-# to_int(if_(true)(one)(two))
-# to_int(if_(false)(one)(two))
-
 lang2char <- function(expr, type = c("rexp", "sexp")) {
   type <- match.arg(type)
   stopifnot(is.call(expr))
