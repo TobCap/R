@@ -178,17 +178,6 @@ compose_ <- function(f, g) function(x) f(g(x)) # rename
     function(x) Reduce(Funcall, rev(list(...)), x, right = TRUE)
 }
 
-
-### invokes interceptor; the idea comes from underscore javascript.
-### it easy to debug.
-tap <- function(x, fun = print, ...) {
-  fun(x, ...)
-  x
-}
-# > 1:10 %|% ..[..%%2==0] %|% tap %|% ..^2
-# [1]  2  4  6  8 10
-# [1]   4  16  36  64 100
-
 # > cos(log(sin(pi/2)))
 #
 # > cos %<<% log %<<% sin %<|% (pi/2)
