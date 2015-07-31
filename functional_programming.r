@@ -148,9 +148,9 @@
 "%<<%" <- function(f, g) function(x) f(g(x)) # backward composition
 compose_ <- function(f, g) function(x) f(g(x)) # rename
 
-# add1 <- f.(x, {cat("add1(x = ", x, ") -> ", sep = ""); x + 1})
-# mul2 <- f.(x, {cat("mul2(x = ", x, ") -> ", sep = ""); x * 2})
-# div3 <- f.(x, {cat("div3(x = ", x, ") -> ", sep = ""); x / 3})
+# add1 <- function(x) {cat("add1(x = ", x, ") -> ", sep = ""); x + 1}
+# mul2 <- function(x) {cat("mul2(x = ", x, ") -> ", sep = ""); x * 2}
+# div3 <- function(x) {cat("div3(x = ", x, ") -> ", sep = ""); x / 3}
 # f4 <- add1 %>>% mul2 %>>% div3
 # f5 <- add1 %<<% mul2 %<<% div3
 
@@ -461,7 +461,12 @@ flip_cr <- function(fun) {
 # 10 * x^9
 
 ### curried function creator
-# devtools::install_github("tobcal/lambdass") 
+f. <- function (..., env_ = parent.frame()) {
+  d <- as.pairlist(as.vector(substitute((...)), "list")[-1])
+  n <- length(d)
+  eval(call("function", as.formals(d[-n]), d[[n]]), env_)
+}
+
 `λ` <- l. <- function(..., env_ = parent.frame()) curry(f.(..., env_ = env_))
 ### Address of λ (lambda) in Unicode is U+03BB or \u03BB
 # cat("\u03BB\n")
