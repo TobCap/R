@@ -3,7 +3,7 @@
 # set options
 local({
   r <- getOption("repos")
-  r["CRAN"] <- "http://cran.ism.ac.jp/"
+  r["CRAN"] <- "https://cran.rstudio.com/"
   # r["R-Forge"] <- "http://r-forge.r-project.org/"
   options(repos = r)
   ## invisible(compiler:::enableJIT(3))
