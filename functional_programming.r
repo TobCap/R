@@ -348,32 +348,45 @@ curry_dots <- function (fun, env_ = parent.frame()) {
 # h3 <- curry(D); h3(quote(x^5))("x")
 # h4 <- curry(D)(quote(x^5)); h4("x")
 
-# particial application
-# an undercore symbol `_` is requited to bind variables
-pa <- function(expr, env_ = parent.frame()) {
-  all_vars <- all.names(substitute(expr), functions = FALSE)
-  underscores <- all_vars[grep("^\\_$|^\\_[0-9]+$", all_vars)]
-  
-  if (length(underscores) == 0)
-    stop("A binding variable must start with underscore and ends with numeric.")
-  if (anyDuplicated.default(underscores) > 0)
-    stop("Binding variables must be different from each other.")
-    
-  created_formals <- as.formals(underscores[order(underscores)])
+# auxiliary function
+as.formals <- function(xs) tools:::as.alist.call(xs)
 
-  make_body <- function(args_) {
-    if (length(args_) == 0) substitute(expr, parent.env(environment()))
-    else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
+# particial application
+# A dots symbol or that of ending with numerics are requited to bind variables
+# The result is curried.
+pa <- (function() {
+  # lookup-table
+  d <- c("..", paste0("..", 0:99))
+  u <- sapply(c("_", paste0("_", 0:99)), as.symbol)
+  lst <- as.list(setNames(u, d))
+  
+  function(expr, env_ = parent.frame()) {
+    all_vars <- all.vars(substitute(expr), unique = FALSE)
+    dots_vars <- all_vars[grep("^\\.\\.$|^\\.\\.[0-9]+$", all_vars)]
+    
+    if (length(dots_vars) == 0)
+      stop("A binding variable must start with .. and ends with numeric.")
+    if (anyDuplicated.default(dots_vars) > 0)
+      stop("Binding variables must be different from each other.")
+    
+    mod_vars <- gsub("^..", "_", dots_vars)  
+    created_formals <- as.formals(mod_vars[order(mod_vars)])
+    expr_mod <- substituteDirect(substitute(expr), lst)
+    
+    make_body <- function(args_) {
+      if (length(args_) == 0) substitute(expr_mod, parent.env(environment()))
+      else call("function", as.pairlist(args_[1]), make_body(args_[-1]))
+    }
+    eval(make_body(created_formals), env_)
   }
-  eval(make_body(created_formals), env_)
-}
-# f1 <- pa(`_` * 2); f1(10)
-# f2 <- pa(D(`_`, "x")); f2(quote(x^4))
-# f3 <- pa(D(quote(x^5+2*y^4), `_`)); f3("x"); f3("y")
+})()
+# f1 <- pa(.. * 2); f1(10)
+# f2 <- pa(D(.., "x")); f2(quote(x^4))
+# f3 <- pa(D(quote(x^5+2*y^4), ..)); f3("x"); f3("y")
 #
 # g <- function(x, y, z, w) 1000*x + 100*y + 10*z + 1*w
-# f4 <- pa(g(1, `_1`, 7, `_2`)); f4(3)(9)
-# f5 <- pa(g(1, `_2`, 7, `_1`)); f5(3)(9)
+# f4 <- pa(g(1, ..1, 7, ..2)); f4(3)(9)
+# f5 <- pa(g(1, ..2, 7, ..1)); f5(3)(9)
 
 # see https://gist.github.com/TobCap/6255395
 uncurry <- function(fun) {
