@@ -357,7 +357,7 @@ as.formals <- function(xs) tools:::as.alist.call(xs)
 pa <- (function() {
   # lookup-table
   d <- c("..", paste0("..", 0:99))
-  u <- sapply(c("_", paste0("_", 0:99)), as.symbol)
+  u <- lapply(c("_", paste0("_", 0:99)), as.symbol)
   lst <- as.list(setNames(u, d))
   
   function(expr, env_ = parent.frame()) {
