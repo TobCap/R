@@ -24,8 +24,9 @@ local({
 # s <- function(n) if (n == 0) 0 else 1 + s(n - 1)
 
 # > sessionInfo()
-# R version 3.1.2 (2014-10-31)
+# R version 3.3.3 (2017-03-06)
 # Platform: x86_64-w64-mingw32/x64 (64-bit)
+# Running under: Windows 10 x64 (build 14393)
 
 # --vanilla
 # > s(1664)
@@ -56,15 +57,20 @@ options(expressions = 5e5)
 # load functions from github and attach them in the search path.
 # load startup packages
 local({
-  git_dir_url <- "https://raw.github.com/TobCap/R/master"
-  files <- c("start_functions.r", "functional_programming.r", "tail_call_optimization.r")
-  git_files <- file.path(git_dir_url, files)
+
+  github_master_url <- "https://raw.githubusercontent.com/TobCap/R/master"
+  files <- c("start_functions.r",
+             "functional_programming.r",
+	     "tail-recursion-elimination.r")
+  github_files <- file.path(github_master_url, files)
   startup_packages <- c("microbenchmark")
   # startup_packages <- c(
-    # "ggplot2", "gridExtra", "reshape2", "microbenchmark",
-    # "mmap", "ff", "ffbase", "gmp", "compiler", "parallel", "RODBC",
-    # "data.table", "timeDate", "lubridate", "PerformanceAnalytics",
-    # "quantmod", "RQuantLib", "Rcpp", "RcppDE", "sos")
+    # "tidyverse", "gridExtra", "microbenchmark",
+    # "gmp", "parallel", "RODBC",
+    # "data.table", "dtplyr", 
+    # "timeDate", "lubridate",
+    # "PerformanceAnalytics", "PortfolioAnalytics",
+    # "quantmod", "RQuantLib", "Rcpp", "sos")
 
   inquire <- function(ask, cancel_msg = "") {
     ans <- substr(readline(ask), 1L, 1L)
@@ -77,60 +83,55 @@ local({
   }  
   
   isWindows <- .Platform$OS.type == "windows"
-  if (isWindows) utils:::setInternet2(TRUE)
   
-  get_file_github <- function(git_url){
+  get_file_github <- function(github_url){
     # returns downloaded local path
-    local_path <- file.path(tempdir(), basename(git_url))
+    local_path <- file.path(tempdir(), basename(github_url))
     print("downloading a file from github")
     if (isWindows) {      
-      utils:::download.file(url = git_url, destfile = local_path)
+      utils:::download.file(url = github_url, destfile = local_path)
     } else {
-      # http://stackoverflow.com/questions/7715723/sourcing-r-script-over-https
-      # http://stackoverflow.com/questions/14441729/read-a-csv-from-github-into-r
-      rawfile <- sub("https://github.", "https://raw.github.",  git_url)
-      # If you access the Internet via proxy, don't forget to set HTTPS_PROXY in environment variables.
-      utils:::download.file(url = rawfile, destfile = rawfile, method = "curl", extra = "-k")
+      # If you access the Internet via proxy, don't forget to set
+      # HTTPS_PROXY in environment variables.
+      utils:::download.file(url = github_url, destfile = local_path,
+                            method = "curl", extra = "-k")
       # "-k" disables verifying its peer process. see http://curl.haxx.se/docs/sslcerts.html
     }
     return(local_path)
   }
   
-  attach_file <- function(git_url){
-    local_path <- get_file_github(git_url)
+  attach_file <- function(github_url){
+    local_path <- get_file_github(github_url)
     sys.source(local_path, envir = attach(NULL, name = basename(local_path)))
   }
   
-  #  dummy <- readline("press Enter Key ") # for RStudio
+  # dummy <- readline("press Enter Key ") # for RStudio
 
-  # download_github <- inquire(
-    # ask = "  download files from your github? (y/n) ",
-    # cancel_msg = "quit downloading from github"
-  # )
+  download_github <- inquire(
+    ask = "  download files from your github? (y/n) ",
+    cancel_msg = "quit downloading from github"
+  )
   
-  # load_default_packages <- inquire(
-    # ask = "  read your default packages? (y/n) ",
-    # cancel_msg = "canceled"
-  # )
+  load_default_packages <- inquire(
+    ask = "  read your default packages? (y/n) ",
+    cancel_msg = "canceled"
+  )
     
-  # if (isTRUE(download_github)) {
-    # for (x in git_files) {
-      # attach_file(x)
-    # }
-  # }
+  if (isTRUE(download_github)) {
+    for (x in github_files) {
+      attach_file(x)
+    }
+  }
   
-  # if (isTRUE(load_default_packages)) {
-    # # load.packages() is defined in above "start_functions.r"
-    # if (exists("load.packages")) load.packages(startup_packages)
-    # else {
-      # for (x in startup_packages){
-        # suppressPackageStartupMessages(library(x, character.only = TRUE, quietly = TRUE))
-        # cat("###", "package", x, "is loaded\n")
-        # utils:::flush.console()
-      # }
-    # }
-  # }
+  if (isTRUE(load_default_packages)) {
+    for (x in startup_packages) {
+      if (!require(x, character.only = TRUE)) {
+        suppressPackageStartupMessages(
+          library(x, character.only = TRUE, quietly = TRUE))
+        cat("###", "package", x, "is loaded\n")
+        utils:::flush.console()
+      }
+    }
+  }
     
-  # load.packages("Rbbg", repos = "http://r.findata.org")
-  # load.packages("FinancialInstrument", repos="http://R-Forge.R-project.org")
 })
